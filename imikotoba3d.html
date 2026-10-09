@@ -1,0 +1,189 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>忌み言葉 3D</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Shippori+Mincho:wght@400;700;800&family=Zen+Antique&display=swap">
+<style>
+/* Layout: full-bleed 3D view with the 2D game's HUD and text window floated over it. Single dark look by choice. */
+:root{
+  --night:#05060a;
+  --ink:rgba(8,9,14,.82);
+  --frost:#dde1e8;
+  --ash:#8a8f9c;
+  --shu:#a3282a;
+  --lamp:#e8b25c;
+  --rust:#c98b7a;
+  --line:rgba(221,225,232,.14);
+  --f-story:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+  --f-brush:"Zen Antique","Shippori Mincho","Yu Mincho",serif;
+  --f-ui:"DotGothic16","MS Gothic","Osaka-Mono",monospace;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var(--frost);font-family:var(--f-story)}
+#view{position:fixed;inset:0}
+#view canvas{display:block;width:100%;height:100%}
+.layer{position:fixed;inset:0;pointer-events:none}
+
+#hud{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:clamp(12px,2.4vh,26px) clamp(14px,2.4vw,32px);font-family:var(--f-ui);font-size:clamp(11px,1.1vw,14px);text-shadow:0 0 4px #000,0 0 4px #000;z-index:5}
+#area{font-family:var(--f-brush);font-size:clamp(18px,2vw,26px);letter-spacing:.3em;color:var(--frost)}
+.meters{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.m{display:flex;align-items:center;gap:8px;color:var(--ash)}
+.m i{display:block;width:clamp(64px,9vw,120px);height:4px;background:rgba(5,6,10,.7);border:1px solid var(--line)}
+.m b{display:block;height:100%;width:0;background:var(--shu)}
+#mBreath b{background:var(--frost)}
+#mPoss b{background:var(--lamp)}
+#eatenHud{position:fixed;left:clamp(14px,2.4vw,32px);top:clamp(52px,8vh,80px);font-family:var(--f-ui);font-size:clamp(11px,1.1vw,14px);color:var(--ash);text-shadow:0 0 4px #000;z-index:5;pointer-events:none}
+#eatenHud span{color:var(--frost);margin-left:.5em}
+#count{position:fixed;transform:translate(-50%,-100%);color:var(--shu);font-size:clamp(14px,1.6vw,20px);pointer-events:none;white-space:nowrap;text-shadow:0 0 8px #000;letter-spacing:.15em;z-index:6}
+#marker{position:fixed;transform:translate(-50%,-100%);color:var(--lamp);font-size:12px;pointer-events:none;text-shadow:0 0 6px rgba(232,178,92,.8);z-index:6}
+#flash{background:var(--shu);opacity:0;z-index:7}
+
+#panel{position:fixed;left:50%;bottom:clamp(14px,3vh,36px);transform:translateX(-50%);width:min(880px,calc(100vw - 32px));min-height:7.6em;padding:12px 22px 14px;background:var(--ink);border:1px solid var(--line);font-size:clamp(15px,1.5vw,19px);line-height:1.85;cursor:pointer;z-index:8;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+/* 目的だけを出しているあいだは、画面を隠さないよう小さく薄くする */
+#panel:has(#txt.idle){min-height:0;width:auto;max-width:calc(100vw - 32px);padding:6px 18px 8px;background:rgba(8,9,14,.5);box-shadow:none;font-size:clamp(13px,1.2vw,16px)}
+#panel:has(#txt.idle) #txt{min-height:0}
+#who{font-family:var(--f-ui);font-size:.75em;color:var(--lamp);letter-spacing:.14em;min-height:1.3em}
+#txt{white-space:pre-wrap;min-height:2.6em;overflow-wrap:anywhere}
+#txt.idle{color:var(--ash)}
+#txt.forged{color:var(--rust)}
+#txt .hint{display:block;font-family:var(--f-ui);font-size:.78em;color:var(--frost);margin-top:2px}
+.eaten{color:var(--frost);text-shadow:0 0 6px rgba(163,40,42,.9)}
+#choices{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+#choices button{font:inherit;font-size:.95em;text-align:left;background:transparent;color:var(--frost);border:1px solid var(--line);padding:5px 14px;cursor:pointer;line-height:1.6}
+#choices button.yama{color:var(--lamp)}
+#choices button.sel,#choices button:focus-visible{border-color:var(--shu);background:rgba(163,40,42,.18);outline:none}
+#next{position:absolute;right:16px;bottom:8px;font-size:.75em;color:var(--ash);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+
+#title{pointer-events:auto;display:flex;align-items:center;justify-content:flex-end;gap:clamp(24px,6vw,96px);padding:6vh 8vw;background:linear-gradient(90deg,rgba(5,6,10,0) 25%,rgba(5,6,10,.8) 100%);cursor:pointer;z-index:20}
+#title .tt{writing-mode:vertical-rl;font-family:var(--f-brush);font-size:clamp(56px,12vh,140px);letter-spacing:.3em;line-height:1;text-shadow:0 0 30px rgba(163,40,42,.4),0 0 2px #000}
+#title .side{display:flex;flex-direction:column;gap:14px;max-width:24em;min-width:0}
+#title .era{font-family:var(--f-ui);color:var(--ash);font-size:13px;letter-spacing:.25em}
+#title .rule{font-size:clamp(15px,1.6vw,20px);line-height:1.9}
+#title .rule em{font-style:normal;color:var(--lamp)}
+#title button{align-self:flex-start;font-family:var(--f-ui);font-size:15px;background:transparent;color:var(--frost);border:1px solid var(--shu);padding:8px 22px;cursor:pointer;letter-spacing:.3em}
+#title button:hover,#title button:focus-visible{background:rgba(163,40,42,.25);outline:none}
+#title .note{font-family:var(--f-ui);font-size:12px;color:var(--ash);line-height:1.9}
+#title .note kbd{font-family:inherit;color:var(--frost);border:1px solid var(--line);padding:0 4px}
+#title label{font-family:var(--f-ui);font-size:12px;color:var(--ash);display:flex;gap:8px;align-items:center}
+#title select{background:#10121a;color:var(--frost);border:1px solid var(--line);font:inherit;padding:2px 6px}
+
+#endcard{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(5,6,10,.7);z-index:9}
+#endcard .k{font-family:var(--f-brush);font-size:clamp(64px,12vh,128px);color:var(--shu)}
+#endcard .t{font-family:var(--f-brush);font-size:clamp(20px,3vh,32px);letter-spacing:.4em}
+
+#eatfx{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:radial-gradient(ellipse at center,rgba(0,0,0,.35),rgba(0,0,0,.85));z-index:10}
+#eatfx .w{font-family:var(--f-brush);font-size:clamp(80px,17vh,190px);line-height:1.1}
+#eatfx .c{font-size:clamp(16px,2vw,24px);color:var(--shu);letter-spacing:.3em;min-height:1.5em}
+#eatfx.on .w{animation:jit .12s steps(2) infinite}
+@keyframes jit{0%{transform:translate(0,0)}50%{transform:translate(3px,-2px)}100%{transform:translate(-3px,2px)}}
+
+#journal{pointer-events:auto;display:flex;align-items:center;justify-content:center;background:rgba(3,4,7,.86);z-index:15;padding:16px}
+#journal .box{width:min(760px,100%);max-height:86vh;overflow:auto;padding:22px clamp(18px,3vw,36px);background:rgba(10,11,16,.95);border:1px solid var(--line);font-size:clamp(13px,1.3vw,16px);line-height:1.8}
+#journal h2{margin:0 0 4px;font-family:var(--f-brush);font-weight:400;font-size:1.6em;letter-spacing:.3em}
+#journal .rule{color:var(--ash);margin:0 0 12px}
+#journal table{width:100%;border-collapse:collapse;margin-bottom:14px}
+#journal th{font-family:var(--f-ui);font-weight:400;color:var(--ash);text-align:left;font-size:.85em;border-bottom:1px solid var(--line);padding:2px 8px}
+#journal td{border-bottom:1px solid var(--line);padding:4px 8px}
+#journal td.y{color:var(--lamp)}
+#journal tr.gone td{color:var(--ash)}
+#journal h3{margin:0 0 6px;font-size:.95em;font-family:var(--f-ui);font-weight:400;color:var(--ash);letter-spacing:.15em}
+#journal ul{margin:0;padding-left:1.2em}
+#journal .close{font-family:var(--f-ui);color:var(--ash);font-size:.85em;margin-top:12px}
+#journal .name{color:var(--shu)}
+
+#touch{position:fixed;left:0;right:0;bottom:0;display:none;justify-content:space-between;align-items:flex-end;padding:0 16px 16px;user-select:none;-webkit-user-select:none;touch-action:none;z-index:11;pointer-events:none}
+#touch > div{pointer-events:auto}
+.dpad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,52px)}
+.dpad .u{grid-area:1/2}.dpad .l{grid-area:2/1}.dpad .r{grid-area:2/3}.dpad .d{grid-area:3/2}
+#touch button{font-family:var(--f-ui);background:rgba(8,9,14,.7);color:var(--frost);border:1px solid var(--line);border-radius:6px;font-size:15px;touch-action:none}
+.acts{display:flex;gap:10px}
+.acts button{width:60px;height:60px;border-radius:50% !important}
+#tA{border-color:var(--lamp) !important}#tB{border-color:var(--shu) !important}
+.help{position:fixed;right:clamp(14px,2.4vw,32px);bottom:6px;margin:0;font-family:var(--f-ui);font-size:11px;color:var(--ash);opacity:.7;z-index:4;pointer-events:none}
+@media (pointer:coarse){
+  #touch{display:flex}
+  .help{display:none}
+  #panel{bottom:190px;min-height:6em;font-size:14px}
+}
+
+#loading{display:flex;align-items:center;justify-content:center;background:var(--night);z-index:30;font-family:var(--f-brush);letter-spacing:.4em;color:var(--ash);font-size:clamp(14px,1.6vw,20px)}
+#error{display:flex;align-items:center;justify-content:center;text-align:center;background:var(--night);z-index:31;padding:24px;line-height:2}
+@media (prefers-reduced-motion:reduce){#eatfx.on .w,#next{animation:none}}
+</style>
+
+<div id="view"></div>
+
+<div id="hud" class="layer">
+  <div id="area"></div>
+  <div class="meters">
+    <div class="m" id="mPres"><span>気配</span><i><b></b></i></div>
+    <div class="m" id="mPoss" hidden><span>憑かれ</span><i><b></b></i></div>
+    <div class="m" id="mBreath" hidden><span>息</span><i><b></b></i></div>
+  </div>
+</div>
+<div id="eatenHud"></div>
+<div id="count" hidden></div>
+<div id="marker" hidden>◆</div>
+<div id="flash" class="layer"></div>
+<div id="eatfx" class="layer" hidden><div class="w"></div><div class="c"></div></div>
+<div id="journal" class="layer" hidden></div>
+<div id="endcard" class="layer" hidden><div class="k">終</div><div class="t"></div></div>
+
+<div id="panel"><div id="who"></div><div id="txt"></div><div id="choices"></div><div id="next" hidden>▼</div></div>
+
+<div id="title" class="layer">
+  <div class="side">
+    <div class="era">一九九九年 霜月 ― 猿啼</div>
+    <div class="rule">山では、<em>里の言葉</em>で物を呼ぶな。<br>呼んだものは、十二様に喰われる。</div>
+    <button id="startBtn" type="button">はじめる</button>
+    <label for="quality">画質
+      <select id="quality"><option value="low">軽量</option><option value="mid">標準</option><option value="high">高画質</option></select>
+    </label>
+    <div class="note">ヘッドホンを推奨します<br>
+      移動 <kbd>矢印</kbd>/<kbd>WASD</kbd>　調べる・進む <kbd>Z</kbd>/<kbd>Enter</kbd><br>
+      息を止める <kbd>X</kbd>/<kbd>Shift</kbd> 長押し　言葉帳 <kbd>J</kbd></div>
+  </div>
+  <div class="tt">忌み言葉</div>
+</div>
+
+<div id="touch">
+  <div class="dpad">
+    <button type="button" class="u" data-k="ArrowUp">▲</button>
+    <button type="button" class="l" data-k="ArrowLeft">◀</button>
+    <button type="button" class="r" data-k="ArrowRight">▶</button>
+    <button type="button" class="d" data-k="ArrowDown">▼</button>
+  </div>
+  <div class="acts">
+    <button type="button" id="tJ">帳</button>
+    <button type="button" id="tB" data-k="KeyX">息</button>
+    <button type="button" id="tA">調べる</button>
+  </div>
+</div>
+<p class="help">移動 矢印/WASD　調べる Z　息を止める X/Shift　言葉帳 J</p>
+
+<div id="loading" class="layer">雪を降らせています</div>
+<div id="error" class="layer" hidden></div>
+
+<script src="config.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module" src="game3d.js" onerror="document.getElementById('error').hidden=false;document.getElementById('error').textContent='game3d.js を読み込めませんでした。同じフォルダにあるか確認してください。'"></script>
+<script>
+  // 3D の部品（three.js）を読み込めなかったときに知らせる
+  setTimeout(function () {
+    var l = document.getElementById('loading');
+    if (l && !l.hidden) l.textContent = '読み込みに時間がかかっています。通信環境を確認するか、再読み込みしてください。';
+  }, 15000);
+  addEventListener('error', function (e) {
+    var el = document.getElementById('error');
+    if (el && document.getElementById('loading') && !document.getElementById('loading').hidden) { el.hidden = false; el.textContent = '起動できませんでした：' + (e.message || '不明なエラー'); }
+  });
+</script>
