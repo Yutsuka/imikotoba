@@ -1,0 +1,1075 @@
+<title>忌み言葉</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Shippori+Mincho:wght@400;700;800&display=swap">
+<style>
+/* Layout: a fixed night-screen with a text window beneath it, like an old handheld. Single dark look by choice. */
+:root{
+  --night:#07080d;   /* 夜 */
+  --ink:#0e1018;     /* 文字窓 */
+  --frost:#d9dee8;   /* 雪 */
+  --ash:#848a98;     /* 灰 */
+  --shu:#a3282a;     /* 朱 */
+  --lamp:#e8b25c;    /* 灯 */
+  --rust:#c98b7a;    /* 偽の筆跡 */
+  --line:#262a36;
+  --f-story:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+  --f-ui:"DotGothic16","MS Gothic","Osaka-Mono",monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
+#app{max-width:960px;margin:0 auto;padding-inline:16px;padding-block:16px;display:flex;flex-direction:column;gap:10px}
+#stage{position:relative;width:100%;aspect-ratio:5/3;max-width:100%;background:var(--night);overflow:hidden;border:1px solid var(--line);user-select:none;-webkit-user-select:none}
+#cv{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+
+#hud{position:absolute;inset:0 0 auto 0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:8px 10px;pointer-events:none;font-family:var(--f-ui);font-size:clamp(10px,1.6vw,14px);text-shadow:0 0 3px var(--night),0 0 3px var(--night)}
+#area{letter-spacing:.15em;color:var(--frost)}
+.meters{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.m{display:flex;align-items:center;gap:6px;color:var(--ash)}
+.m i{display:block;width:clamp(48px,10vw,96px);height:5px;background:rgba(7,8,13,.7);border:1px solid var(--line)}
+.m b{display:block;height:100%;width:0;background:var(--shu)}
+#mBreath b{background:var(--frost)}
+#mPoss b{background:var(--lamp)}
+#txt.forged{color:var(--rust)}
+#eatenHud{position:absolute;left:10px;bottom:8px;font-family:var(--f-ui);font-size:clamp(10px,1.6vw,14px);color:var(--ash);pointer-events:none;text-shadow:0 0 3px var(--night)}
+#eatenHud span{color:var(--frost);margin-left:.5em}
+#count{position:absolute;transform:translate(-50%,-100%);color:var(--shu);font-size:clamp(11px,1.9vw,17px);pointer-events:none;white-space:nowrap;text-shadow:0 0 6px var(--night);letter-spacing:.1em}
+#flash{position:absolute;inset:0;background:var(--shu);opacity:0;pointer-events:none}
+
+#title{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:clamp(16px,6vw,64px);padding:12px;background:radial-gradient(ellipse at 55% 65%, #1a1e2b 0%, var(--night) 70%);cursor:pointer}
+#title .tt{writing-mode:vertical-rl;font-weight:800;font-size:clamp(30px,9vw,92px);letter-spacing:.25em;line-height:1;text-shadow:0 0 22px rgba(163,40,42,.45)}
+#title .side{display:flex;flex-direction:column;gap:clamp(6px,1.4vw,14px);max-width:22em;min-width:0}
+#title .era{font-family:var(--f-ui);color:var(--ash);font-size:clamp(10px,1.5vw,13px);letter-spacing:.2em}
+#title .rule{font-size:clamp(12px,2vw,19px);line-height:1.8;text-wrap:balance}
+#title .rule em{font-style:normal;color:var(--lamp)}
+#title button{align-self:flex-start;font-family:var(--f-ui);font-size:clamp(12px,1.7vw,15px);background:transparent;color:var(--frost);border:1px solid var(--shu);padding:6px 16px;cursor:pointer;letter-spacing:.25em}
+#title button:hover,#title button:focus-visible{background:rgba(163,40,42,.2);outline:none}
+#title .note{font-family:var(--f-ui);font-size:clamp(9px,1.3vw,12px);color:var(--ash)}
+
+#endcard{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(7,8,13,.86)}
+#endcard .k{font-size:clamp(40px,10vw,96px);font-weight:800;color:var(--shu)}
+#endcard .t{font-size:clamp(14px,2.4vw,22px);letter-spacing:.3em}
+
+#eatfx{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:rgba(7,8,13,.55);pointer-events:none}
+#eatfx .w{font-size:clamp(52px,14vw,140px);font-weight:800;line-height:1.1}
+#eatfx .c{font-size:clamp(13px,2.2vw,20px);color:var(--shu);letter-spacing:.2em;min-height:1.5em}
+#eatfx.on .w{animation:jit .14s steps(2) infinite}
+@keyframes jit{0%{transform:translate(0,0)}50%{transform:translate(2px,-1px)}100%{transform:translate(-2px,1px)}}
+
+#journal{position:absolute;inset:0;background:rgba(7,8,13,.96);overflow:auto;padding:14px 18px;font-size:clamp(12px,1.8vw,16px);line-height:1.7}
+#journal h2{margin:0 0 4px;font-size:1.3em;letter-spacing:.2em}
+#journal .rule{color:var(--ash);margin:0 0 10px}
+#journal table{width:100%;border-collapse:collapse;margin-bottom:12px}
+#journal th{font-family:var(--f-ui);font-weight:400;color:var(--ash);text-align:left;font-size:.85em;border-bottom:1px solid var(--line);padding:2px 6px}
+#journal td{border-bottom:1px solid var(--line);padding:3px 6px}
+#journal td.y{color:var(--lamp)}
+#journal tr.gone td{color:var(--ash)}
+#journal h3{margin:0 0 4px;font-size:1em;font-family:var(--f-ui);font-weight:400;color:var(--ash);letter-spacing:.15em}
+#journal ul{margin:0;padding-left:1.2em}
+#journal .close{font-family:var(--f-ui);color:var(--ash);font-size:.85em;margin-top:10px}
+#journal .name{color:var(--shu)}
+
+#panel{position:relative;min-height:9.6em;border:1px solid var(--line);background:var(--ink);padding:12px 18px 14px;font-size:clamp(15px,2vw,18px);line-height:1.8;cursor:pointer}
+#who{font-family:var(--f-ui);font-size:.78em;color:var(--lamp);letter-spacing:.12em;min-height:1.3em}
+#txt{white-space:pre-wrap;min-height:3.4em;overflow-wrap:anywhere}
+#txt.idle{color:var(--ash)}
+#txt .hint{display:block;font-family:var(--f-ui);font-size:.8em;color:var(--frost);margin-top:2px}
+.eaten{color:var(--frost);text-shadow:0 0 6px rgba(163,40,42,.8)}
+#choices{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+#choices button{font:inherit;font-size:.95em;text-align:left;background:transparent;color:var(--frost);border:1px solid var(--line);padding:5px 12px;cursor:pointer;line-height:1.6}
+#choices button.yama{color:var(--lamp)}
+#choices button.sel,#choices button:focus-visible{border-color:var(--shu);background:rgba(163,40,42,.16);outline:none}
+#next{position:absolute;right:14px;bottom:6px;font-size:.75em;color:var(--ash);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+
+#touch{display:none;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;user-select:none;-webkit-user-select:none;touch-action:none}
+.dpad{display:grid;grid-template-columns:repeat(3,50px);grid-template-rows:repeat(3,50px)}
+.dpad .u{grid-area:1/2}.dpad .l{grid-area:2/1}.dpad .r{grid-area:2/3}.dpad .d{grid-area:3/2}
+#touch button{font-family:var(--f-ui);background:var(--ink);color:var(--frost);border:1px solid var(--line);border-radius:6px;font-size:15px;touch-action:none}
+.acts{display:flex;gap:10px}
+.acts button{width:58px;height:58px;border-radius:50% !important}
+#tA{border-color:var(--lamp) !important}#tB{border-color:var(--shu) !important}
+.help{margin:0;font-family:var(--f-ui);font-size:12px;color:var(--ash);line-height:1.8}
+.help kbd{font-family:inherit;color:var(--frost);border:1px solid var(--line);padding:0 4px}
+@media (pointer:coarse){#touch{display:flex}.help{display:none}}
+@media (prefers-reduced-motion:reduce){#eatfx.on .w,#next{animation:none}}
+</style>
+
+<div id="app">
+  <div id="stage">
+    <canvas id="cv" width="320" height="192"></canvas>
+    <div id="hud">
+      <div id="area"></div>
+      <div class="meters">
+        <div class="m" id="mPres"><span>気配</span><i><b></b></i></div>
+        <div class="m" id="mPoss" hidden><span>憑かれ</span><i><b></b></i></div>
+        <div class="m" id="mBreath" hidden><span>息</span><i><b></b></i></div>
+      </div>
+    </div>
+    <div id="eatenHud"></div>
+    <div id="count" hidden></div>
+    <div id="flash"></div>
+    <div id="eatfx" hidden><div class="w"></div><div class="c"></div></div>
+    <div id="journal" hidden></div>
+    <div id="endcard" hidden><div class="k">終</div><div class="t"></div></div>
+    <div id="title">
+      <div class="tt">忌み言葉</div>
+      <div class="side">
+        <div class="era">一九九九年 霜月 ― 猿啼</div>
+        <div class="rule">山では、<em>里の言葉</em>で物を呼ぶな。<br>呼んだものは、十二様に喰われる。</div>
+        <button id="startBtn" type="button">はじめる</button>
+        <div class="note">音が出ます ／ 試作版・約15分</div>
+      </div>
+    </div>
+  </div>
+  <div id="panel"><div id="who"></div><div id="txt"></div><div id="choices"></div><div id="next" hidden>▼</div></div>
+  <div id="touch">
+    <div class="dpad">
+      <button type="button" class="u" data-k="ArrowUp">▲</button>
+      <button type="button" class="l" data-k="ArrowLeft">◀</button>
+      <button type="button" class="r" data-k="ArrowRight">▶</button>
+      <button type="button" class="d" data-k="ArrowDown">▼</button>
+    </div>
+    <div class="acts">
+      <button type="button" id="tJ">帳</button>
+      <button type="button" id="tB" data-k="KeyX">息</button>
+      <button type="button" id="tA">調べる</button>
+    </div>
+  </div>
+  <p class="help">移動 <kbd>矢印</kbd>/<kbd>WASD</kbd>　調べる・進む <kbd>Z</kbd>/<kbd>Enter</kbd>　息を止める <kbd>X</kbd>/<kbd>Shift</kbd> 長押し　言葉帳 <kbd>J</kbd></p>
+</div>
+
+<script src="config.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const CFG = window.GAME_CONFIG;
+if (!CFG) {
+  $('title').hidden = true;
+  $('txt').textContent = '設定ファイル config.js を読み込めませんでした。imikotoba.html と同じフォルダに config.js を置いてください。';
+  return;
+}
+const TX = CFG.text, UI = CFG.text.ui, ST = CFG.stalker;
+
+const VW = 320, VH = 192;
+const cv = $('cv'), ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const dark = document.createElement('canvas'); dark.width = VW; dark.height = VH;
+const dctx = dark.getContext('2d');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const END = Symbol('end');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function hsh(x, y, s) { const v = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return v - Math.floor(v); }
+
+/* ---------- 言葉 ---------- */
+const WORD = Object.fromEntries(CFG.words.map(w => [w.sato, w]));
+// {y:火} → 山言葉、{l:火} → 語源
+function fill(s) {
+  return s.replace(/\{([yl]):([^}]+)\}/g, (m, k, w) => {
+    const o = WORD[w]; if (!o) return m;
+    return (k === 'y' ? o.yama : o.latin) || m;
+  });
+}
+// 喰われた言葉を ■ にする
+function T(s) {
+  if (!s) return '';
+  s = fill(s);
+  for (const w of S.eaten) for (const p of WORD[w].eat) s = s.split(p).join('■'.repeat(p.length));
+  return s;
+}
+function esc(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function fmt(s) { return esc(s).replace(/■+/g, m => `<span class="eaten">${m}</span>`); }
+
+/* ---------- マップ ---------- */
+function grid(w, h, ch) { return Array.from({ length: h }, () => Array(w).fill(ch)); }
+
+function buildVillage() {
+  const W = 30, H = 19, g = grid(W, H, '.');
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const e = Math.min(x, W - 1 - x, y, H - 1 - y);
+    if (e === 0 || (e === 1 && hsh(x, y, 1) < .7) || (e === 2 && hsh(x, y, 2) < .3)) g[y][x] = '#';
+  }
+  for (let x = 0; x < W; x++) { g[0][x] = '#'; g[1][x] = '#'; }
+  for (const [x, y] of [[3, 15], [10, 16], [20, 16], [26, 3], [11, 11], [19, 12], [3, 9], [27, 7], [17, 11], [12, 3], [9, 15]]) g[y][x] = '#';
+  const path = (x0, y0, x1, y1) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) g[y][x] = ','; };
+  path(14, 0, 15, 17); path(7, 8, 21, 8); path(15, 15, 25, 15); path(6, 13, 14, 13);
+  path(7, 7, 7, 8); path(21, 7, 21, 8); path(25, 13, 25, 15); path(5, 12, 5, 13);
+  g[1][14] = 'G'; g[1][15] = 'G';
+  const house = (x, y, w, doorX, wins) => {
+    for (let i = 0; i < w; i++) { g[y][x + i] = 'T'; g[y + 1][x + i] = wins.includes(i) ? 'W' : 'H'; g[y + 2][x + i] = 'H'; }
+    g[y + 2][doorX] = 'D';
+  };
+  house(5, 4, 5, 7, [1, 3]);    // 源造の家
+  house(19, 4, 4, 21, [1]);     // 空き家
+  house(23, 10, 5, 25, [1, 3]); // 民宿
+  g[11][5] = 'S';               // 祠
+  for (const [x, y] of [[27, 13], [26, 13], [27, 14], [26, 14], [8, 7], [7, 12], [6, 12]]) g[y][x] = '.';
+  return g;
+}
+
+function carve(g, pts, rad, seed) {
+  const W = g[0].length, H = g.length;
+  const walk = fn => {
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+      const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 4);
+      for (let s = 0; s <= n; s++) fn(x0 + (x1 - x0) * s / n, y0 + (y1 - y0) * s / n);
+    }
+  };
+  walk((cx, cy) => {
+    for (let y = Math.floor(cy - rad - 1); y <= Math.ceil(cy + rad + 1); y++)
+      for (let x = Math.floor(cx - rad - 1); x <= Math.ceil(cx + rad + 2); x++) {
+        if (y < 0 || y >= H || x < 0 || x >= W) continue;
+        const d = Math.hypot(x + .5 - (cx + 1), y - cy);
+        if (d <= rad + (hsh(x, y, seed) - .5) * 1.2 && g[y][x] === '#') g[y][x] = '.';
+      }
+  });
+  walk((cx, cy) => {
+    const px = Math.round(cx), py = Math.round(cy);
+    if (py >= 0 && py < H) { g[py][px] = ','; g[py][px + 1] = ','; }
+  });
+}
+
+function buildMountain() {
+  const W = 26, H = 40, g = grid(W, H, '#');
+  carve(g, [[12, 39], [12, 34], [9, 30], [12, 25], [16, 21], [14, 17], [8, 14], [11, 10], [12, 7], [12, 0]], 2.6, 7);
+  for (const [x, y, c] of [[7, 30, 'R'], [17, 22, 'R'], [10, 15, 'R'], [7, 26, '~'], [8, 26, '~'], [8, 27, '~']]) if (g[y][x] === '.') g[y][x] = c;
+  for (let y = 4; y <= 6; y++) for (let x = 8; x <= 11; x++) g[y][x] = 'K';
+  g[6][10] = 'D';
+  g[7][10] = '.';
+  return g;
+}
+
+function buildOku() {
+  const W = 30, H = 30, g = grid(W, H, '.');
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const nx = (x - 14.5) / 13.5, ny = (y - 15) / 14.5;
+    const r = nx * nx + ny * ny + (hsh(x, y, 3) - .5) * .25;
+    if (r > 1 || hsh(x, y, 4) < .11) g[y][x] = '#';
+  }
+  const clear = (cx, cy, r) => { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (Math.hypot(x - cx, y - cy) <= r) g[y][x] = '.'; };
+  clear(14.5, 27, 2); clear(14.5, 3, 3); clear(5, 12, 1.6); clear(24, 10, 1.6);
+  for (let y = 26; y < H; y++) { g[y][14] = ','; g[y][15] = ','; }
+  g[2][14] = 'A'; g[2][15] = 'A'; g[12][5] = 'B'; g[10][24] = 'X';
+  return g;
+}
+
+const BUILDERS = { village: buildVillage, mountain: buildMountain, oku: buildOku };
+const MAPS = {};
+for (const [id, conf] of Object.entries(CFG.maps)) {
+  const M = Object.assign({}, conf, { g: BUILDERS[id]() });
+  M.h = M.g.length; M.w = M.g[0].length; M.lights = [];
+  M.g.forEach((row, y) => row.forEach((c, x) => { if (c === 'W') M.lights.push([x * 16 + 8, y * 16 + 10]); }));
+  MAPS[id] = M;
+}
+const ACTORS = CFG.actors;
+const SOLID = new Set(['#', 'H', 'T', 'W', 'D', 'S', 'K', 'A', 'B', 'X', '~', 'R']);
+const visibleActors = () => ACTORS[S.map].filter(a => !(a.night === 'hide' && S.flags.night));
+
+/* ---------- 状態 ---------- */
+let S;
+function newState() {
+  return {
+    map: 'village', x: 0, y: 0, dir: 0, step: 0, moving: false,
+    // known: 里の言葉 → true（意味がわかる）／'unknown'（山言葉だけ聞いた）
+    flags: {}, eaten: [], known: {}, clues: {}, goal: '',
+    presence: 0, possess: 0, breath: 100, holding: false, gasp: false, detect: 0, hbT: 0,
+    busy: false, over: false, started: false, nearId: null, shake: 0,
+    dog: { active: false, away: false, x: 0, y: 0, face: 1 }, ent: null, t: 0,
+  };
+}
+
+/* ---------- 描画: タイル ---------- */
+let mapCanvas = document.createElement('canvas');
+function buildMapCanvas() {
+  const M = MAPS[S.map];
+  mapCanvas = document.createElement('canvas');
+  mapCanvas.width = M.w * 16; mapCanvas.height = M.h * 16;
+  const g2 = mapCanvas.getContext('2d');
+  for (let y = 0; y < M.h; y++) for (let x = 0; x < M.w; x++) drawTile(g2, M, x, y);
+}
+function drawTile(g2, M, x, y) {
+  const ch = M.g[y][x], px = x * 16, py = y * 16;
+  const F = (a, b, w, h, c) => { g2.fillStyle = c; g2.fillRect(px + a, py + b, w, h); };
+  const ground = () => {
+    F(0, 0, 16, 16, M.ground);
+    for (let i = 0; i < 4; i++) if (hsh(x, y, i + 10) > .5) F(Math.floor(hsh(x, y, i + 20) * 15), Math.floor(hsh(x, y, i + 30) * 15), 1, 1, M.speck);
+  };
+  const path = () => {
+    F(0, 0, 16, 16, '#8f96a4');
+    for (let i = 0; i < 4; i++) F(Math.floor(hsh(x, y, i + 40) * 15), Math.floor(hsh(x, y, i + 50) * 15), 1, 1, '#7a8190');
+  };
+  const wall = c => { F(0, 0, 16, 16, c); for (let i = 3; i < 16; i += 4) F(i, 0, 1, 16, '#2e241b'); };
+  const above = y > 0 ? M.g[y - 1][x] : '#';
+  switch (ch) {
+    case '.': ground(); break;
+    case ',': path(); break;
+    case 'G':
+      path();
+      if (!S.flags.learned) { F(0, 5, 16, 2, '#c4ad78'); F(0, 7, 16, 1, '#8a774c'); F(3, 7, 2, 4, '#ece8dc'); F(10, 7, 2, 4, '#ece8dc'); }
+      break;
+    case '#': ground(); tree(g2, px, py, x, y); break;
+    case 'T':
+      F(0, 0, 16, 16, '#2b2420');
+      for (let r = 2; r < 16; r += 3) F(0, r, 16, 1, '#362d27');
+      if (above !== 'T') F(0, 0, 16, 3, '#dfe4ec');
+      F(0, 15, 16, 1, '#15110e');
+      break;
+    case 'H': wall('#4a3a2c'); break;
+    case 'X':
+      ground();
+      F(3, 4, 10, 11, '#585b62'); F(4, 3, 8, 2, '#d7dce5'); F(7, 6, 2, 7, '#34363b'); F(5, 8, 6, 2, '#34363b');
+      break;
+    case 'W': wall('#4a3a2c'); F(4, 4, 8, 6, S.flags.night ? '#16120f' : '#e8b25c'); F(8, 4, 1, 6, '#7a5326'); F(4, 7, 8, 1, '#7a5326'); break;
+    case 'D': wall('#4a3a2c'); F(3, 2, 10, 14, '#120d0a'); F(3, 2, 10, 1, '#2a211a'); break;
+    case 'K':
+      if (above !== 'K' && above !== 'D') { F(0, 0, 16, 16, '#2b2420'); for (let r = 4; r < 16; r += 3) F(0, r, 16, 1, '#362d27'); F(0, 0, 16, 3, '#dfe4ec'); }
+      else wall('#3d3229');
+      break;
+    case 'S':
+      ground();
+      F(3, 11, 10, 4, '#6b6e76'); F(4, 5, 8, 7, '#5a2b22'); F(6, 7, 4, 4, '#1a0f0c');
+      F(2, 2, 12, 4, '#2c2522'); F(2, 1, 12, 2, '#e3e8ef'); F(7, 7, 1, 3, '#ece8dc');
+      break;
+    case '~':
+      F(0, 0, 16, 16, '#25303d');
+      F(2, 4, 6, 1, '#3a4656'); F(7, 5, 1, 4, '#3a4656'); F(9, 11, 5, 1, '#3a4656'); F(4, 12, 1, 1, '#8b97a8');
+      break;
+    case 'R':
+      ground();
+      F(3, 6, 10, 8, '#555963'); F(2, 8, 12, 5, '#555963'); F(4, 6, 8, 2, '#d7dce5'); F(4, 12, 9, 2, '#40434b');
+      break;
+    case 'A':
+      ground();
+      F(0, 4, 16, 12, '#3d3e45'); F(0, 4, 16, 2, '#d7dce5'); F(0, 8, 16, 2, '#c4ad78');
+      F(4, 10, 2, 4, '#ece8dc'); F(11, 10, 2, 4, '#ece8dc'); F(0, 15, 16, 1, '#26272c');
+      break;
+    case 'B':
+      ground();
+      F(4, -6, 8, 20, '#5f6268'); F(4, -6, 8, 2, '#d7dce5');
+      F(6, -2, 1, 10, '#3a3c42'); F(9, -2, 1, 8, '#3a3c42'); F(2, 12, 12, 3, '#4a4c52');
+      break;
+    default: ground();
+  }
+}
+function tree(g2, px, py, x, y) {
+  const v = hsh(x, y, 5);
+  const dk = v < .5 ? '#13201b' : '#17261f', md = v < .5 ? '#1c2f27' : '#203328', sn = '#e4e9f0';
+  const F = (a, b, w, h, c) => { g2.fillStyle = c; g2.fillRect(px + a, py + b, w, h); };
+  F(7, 11, 2, 5, '#2a1e16');
+  const tier = (top, h, w) => {
+    for (let r = 0; r < h; r++) {
+      const ww = Math.max(1, Math.round(w * (r + 1) / h));
+      F(8 - Math.ceil(ww / 2), top + r, ww, 1, r === 0 ? sn : (r % 3 === 0 ? md : dk));
+    }
+  };
+  tier(-4, 6, 8); tier(0, 7, 12); tier(4, 8, 15);
+  if (v > .3) F(4 + Math.floor(v * 6), 6, 2, 1, sn);
+}
+
+/* ---------- 描画: 人物 ---------- */
+const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); };
+const LOOK = {
+  fumi: { hair: '#1c1414', skin: '#e6d3bf', coat: '#5a3550', acc: '#c9c2b2', leg: '#2a1a26' },
+  genzo: { hair: '#d9d9d9', skin: '#d9c0a3', coat: '#6b5a43', acc: '#4d3f2e', leg: '#2b241c' },
+  yuki: { hair: '#0b0b0e', skin: '#ece4dc', coat: '#dcdce2', acc: '#9a2a2a', leg: '#c9c9d0', long: true },
+  player: { hair: '#17171c', skin: '#e9d8c4', coat: '#2c3348', acc: '#a3282a', leg: '#1b1e2a' },
+};
+function person(sx, sy, c, dir, f) {
+  const L = Math.round(sx) - 5, Tp = Math.round(sy) - 16;
+  R(L + 1, Tp + 15, 8, 2, 'rgba(0,0,0,.28)');
+  R(L + 2, Tp + 13, 2, f === 1 ? 2 : 3, c.leg); R(L + 6, Tp + 13, 2, f === 2 ? 2 : 3, c.leg);
+  R(L + 1, Tp + 6, 8, 8, c.coat); R(L + 1, Tp + 6, 8, 2, c.acc);
+  if (c.long) R(L + 1, Tp + 1, 8, 9, c.hair);
+  R(L + 2, Tp + 1, 6, 6, c.skin); R(L + 2, Tp, 6, 2, c.hair);
+  if (dir === 0) R(L + 2, Tp + 1, 6, 5, c.hair);
+  else {
+    if (dir !== 1) R(L + 3, Tp + 4, 1, 1, '#111');
+    if (dir !== 3) R(L + 6, Tp + 4, 1, 1, '#111');
+    if (dir === 1) R(L + 2, Tp + 1, 1, 4, c.hair);
+    if (dir === 3) R(L + 7, Tp + 1, 1, 4, c.hair);
+  }
+}
+function drawDog(sx, sy, face) {
+  const x = Math.round(sx), y = Math.round(sy), k = '#0d0d10';
+  R(x - 6, y, 10, 2, 'rgba(0,0,0,.25)');
+  R(x - 5, y - 6, 9, 4, k);
+  const hx = face < 0 ? x - 8 : x + 3;
+  R(hx, y - 9, 4, 4, k); R(face < 0 ? hx : hx + 3, y - 11, 1, 2, k);
+  for (const o of [-4, -1, 1, 3]) R(x + o, y - 2, 1, 2, k);
+  R(face < 0 ? x + 4 : x - 7, y - 8, 2, 1, k);
+  R(face < 0 ? hx + 1 : hx + 2, y - 8, 1, 1, '#c9a24a');
+}
+function drawEnt(sx, sy, alpha) {
+  const L = Math.round(sx - 6 + Math.sin(S.t * 1.7)), Tp = Math.round(sy - 28);
+  ctx.save(); ctx.globalAlpha = alpha;
+  R(L + 1, Tp, 10, 3, '#040406'); R(L, Tp + 2, 12, 24, '#040406');
+  R(L + 2, Tp + 9, 8, 19, '#d6d6dc'); R(L + 3, Tp + 3, 6, 7, '#c9c1b8'); R(L + 3, Tp + 3, 6, 1, '#040406');
+  ctx.restore();
+  ctx.save(); ctx.globalAlpha = Math.min(1, alpha + .45);
+  for (const ey of [5, 7, 9]) for (const ex of [3, 5, 6, 8]) R(L + ex, Tp + ey, 1, 1, '#ff2a2a');
+  ctx.globalCompositeOperation = 'lighter';
+  const gr = ctx.createRadialGradient(L + 6, Tp + 7, 0, L + 6, Tp + 7, 10);
+  gr.addColorStop(0, 'rgba(255,40,40,.35)'); gr.addColorStop(1, 'rgba(255,40,40,0)');
+  ctx.fillStyle = gr; ctx.fillRect(L - 6, Tp - 5, 24, 24);
+  ctx.restore();
+}
+
+/* ---------- 雪 ---------- */
+const flakes = Array.from({ length: 90 }, () => ({ x: Math.random() * VW, y: Math.random() * VH, v: 10 + Math.random() * 18, s: Math.random() }));
+
+/* ---------- 音 ---------- */
+let AC = null, master, windG, droneG;
+function audioInit() {
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = .7; master.connect(AC.destination);
+    const len = AC.sampleRate * 2, buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const n = AC.createBufferSource(); n.buffer = buf; n.loop = true;
+    const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 380; f.Q.value = .7;
+    const lfo = AC.createOscillator(); lfo.frequency.value = .09;
+    const lg = AC.createGain(); lg.gain.value = 220; lfo.connect(lg); lg.connect(f.frequency); lfo.start();
+    windG = AC.createGain(); windG.gain.value = 0;
+    n.connect(f); f.connect(windG); windG.connect(master); n.start();
+    droneG = AC.createGain(); droneG.gain.value = 0; droneG.connect(master);
+    for (const hz of [55, 58.3, 82.4]) { const o = AC.createOscillator(); o.frequency.value = hz; o.connect(droneG); o.start(); }
+    AC.noise = buf;
+    setAmb();
+  } catch (e) { AC = null; }
+}
+function setAmb() {
+  if (!AC) return;
+  const m = S.map, t = AC.currentTime;
+  windG.gain.setTargetAtTime(m === 'oku' ? .012 : m === 'mountain' ? .09 : .05, t, .8);
+  droneG.gain.setTargetAtTime(m === 'oku' ? .045 : m === 'mountain' ? .018 : 0, t, 1);
+}
+function tone(type, f0, f1, dur, vol) {
+  if (!AC) return;
+  const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .05);
+}
+function noiseBurst(dur, vol, freq) {
+  if (!AC) return;
+  const t = AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = AC.noise; f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 1.2;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur);
+}
+const sfx = {
+  tick: () => tone('square', 900, 880, .02, .012),
+  thump: () => tone('sine', 70, 38, .18, .35),
+  eat: () => { tone('sawtooth', 240, 30, 1.6, .1); tone('sawtooth', 247, 33, 1.6, .08); noiseBurst(.8, .25, 600); },
+  caught: () => { noiseBurst(1.2, .5, 300); tone('sawtooth', 120, 25, 1.4, .15); },
+};
+
+/* ---------- 文字窓 ---------- */
+const D = { who: $('who'), txt: $('txt'), ch: $('choices'), nx: $('next'), mode: null, res: null, full: [], idx: 0, timer: null, sel: 0, opts: [] };
+function drawTxt() { D.txt.innerHTML = fmt(D.full.slice(0, D.idx).join('')); }
+// 憑かれが進むと、覚えた里の言葉が山言葉に置き換わる
+function yamaize(s) {
+  for (const w of CFG.words) if (w.yama && S.known[w.sato] === true) s = s.split(w.sato).join(w.yama);
+  return s;
+}
+function say(who, text, cls) {
+  return new Promise(res => {
+    clearInterval(D.timer);
+    D.mode = 'say'; D.res = res; D.ch.innerHTML = '';
+    D.who.innerHTML = fmt(T(who || '')); D.txt.className = cls || '';
+    if (who === '透' && !S.rawSpeech && S.possess >= CFG.possession.speechAt) text = yamaize(fill(text));
+    D.full = Array.from(T(text)); D.idx = 0; D.nx.hidden = true;
+    if (reduceMotion) { D.idx = D.full.length; drawTxt(); D.nx.hidden = false; return; }
+    D.timer = setInterval(() => {
+      D.idx++; if (D.idx % 3 === 0) sfx.tick(); drawTxt();
+      if (D.idx >= D.full.length) { clearInterval(D.timer); D.nx.hidden = false; }
+    }, CFG.typeSpeedMs);
+  });
+}
+function advance() {
+  if (D.mode !== 'say') return;
+  if (D.idx < D.full.length) { clearInterval(D.timer); D.idx = D.full.length; drawTxt(); D.nx.hidden = false; return; }
+  D.mode = null; D.nx.hidden = true;
+  const r = D.res; D.res = null; r && r();
+}
+function markSel() { [...D.ch.children].forEach((b, i) => b.classList.toggle('sel', i === D.sel)); }
+function choose(opts, who, text) {
+  return new Promise(res => {
+    clearInterval(D.timer);
+    D.mode = 'choice'; D.res = res; D.sel = 0; D.opts = opts; D.nx.hidden = true;
+    if (who) D.who.innerHTML = fmt(T(who));
+    if (text) { D.txt.className = ''; D.txt.innerHTML = fmt(T(text)); }
+    D.ch.innerHTML = '';
+    opts.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.id = 'choice' + i; b.innerHTML = fmt(T(o.label));
+      if (o.yama) b.classList.add('yama');
+      b.addEventListener('click', e => { e.stopPropagation(); pick(i); });
+      b.addEventListener('mouseenter', () => { D.sel = i; markSel(); });
+      D.ch.appendChild(b);
+    });
+    markSel();
+  });
+}
+function pick(i) {
+  if (D.mode !== 'choice') return;
+  D.mode = null; D.ch.innerHTML = '';
+  const r = D.res; D.res = null; r && r(i);
+}
+// 設定ファイルの台詞を順に流す
+async function play(lines) {
+  for (const l of lines) {
+    if (l === '@restore') { S.eaten = []; updateHUD(); }
+    else await say(l[0], l[1], l[2]);
+  }
+}
+// 里の言葉を選んだ場面では、憑かれていても台詞を山言葉にしない
+async function satoPlay(lines) { S.rawSpeech = true; try { await play(lines); } finally { S.rawSpeech = false; } }
+// 選択肢を出し、選ばれた選択肢を返す。憑かれが強いと里の言葉の選択肢は山言葉に変わる
+async function ask(q) {
+  const opts = q.options.map((o, i) => {
+    const w = o.word && WORD[o.word];
+    if (o.kind === 'sato' && w && w.yama && S.known[o.word] === true && S.possess >= CFG.possession.forceAt)
+      return { ...o, i, label: yamaize(fill(o.label)), kind: 'yama', yama: true };
+    return { ...o, i, yama: o.yama || o.kind === 'yama' };
+  });
+  return opts[await choose(opts, ' ', q.prompt)];
+}
+function idlePanel() {
+  if (D.mode || S.busy) return;
+  clearInterval(D.timer);
+  D.ch.innerHTML = ''; D.nx.hidden = true;
+  D.who.textContent = S.goal ? UI.goalLabel : '';
+  D.txt.className = 'idle';
+  D.txt.innerHTML = fmt(T(S.goal)) + (S.nearId ? `<span class="hint">${esc(UI.interactHint)}</span>` : '');
+}
+function setGoal(key) { S.goal = TX.goals[key]; idlePanel(); }
+
+/* ---------- 演出 ---------- */
+function flash() {
+  const el = $('flash'); el.style.transition = 'none'; el.style.opacity = .7;
+  setTimeout(() => { el.style.transition = 'opacity .9s'; el.style.opacity = 0; }, 40);
+}
+function eatFx(w) {
+  return new Promise(res => {
+    const el = $('eatfx'), we = el.querySelector('.w'), ce = el.querySelector('.c');
+    we.textContent = '「' + w + '」'; ce.textContent = ''; el.hidden = false; el.classList.add('on');
+    S.shake = reduceMotion ? 0 : .6;
+    setTimeout(() => { we.textContent = '「' + '■'.repeat(w.length) + '」'; ce.textContent = UI.eaten; }, 900);
+    setTimeout(() => { el.hidden = true; el.classList.remove('on'); res(); }, 2100);
+  });
+}
+async function eat(w) {
+  if (S.eaten.includes(w)) return;
+  S.eaten.push(w);
+  addPresence(CFG.rules.presencePerEat);
+  if (w === '犬') S.dog.active = false;
+  sfx.eat(); await eatFx(w); updateHUD();
+  if (S.eaten.length >= CFG.rules.eatLimit) { await ending('D'); throw END; }
+}
+const eatRandom = () => { const pool = CFG.rules.eatPool.filter(w => !S.eaten.includes(w)); return eat(pool[Math.floor(Math.random() * pool.length)]); };
+// 山言葉（魔の名）を口にした
+async function possess() {
+  const C = CFG.possession, before = S.possess;
+  S.possess = Math.min(C.limit, S.possess + C.perWord);
+  updateHUD();
+  if (before < C.speechAt && S.possess >= C.speechAt) await play(TX.possession.speech);
+  if (before < C.forceAt && S.possess >= C.forceAt) await play(TX.possession.force);
+  for (const s of C.learn) if (S.possess >= s.at && S.known[s.word] !== true) { S.known[s.word] = true; await play(TX.possession.learned); }
+  if (S.possess >= C.limit) { await ending('E'); throw END; }
+}
+const learn = (...ws) => { for (const w of ws) S.known[w] = true; };
+const addPresence = n => { S.presence = Math.min(100, S.presence + n); };
+const P = CFG.rules.presence;
+
+/* ---------- 出来事 ---------- */
+const EV = {
+  async intro() { await play(TX.intro); setGoal('fumi'); },
+  async fumi() {
+    if (S.flags.night) await play(TX.fumi.night);
+    else if (!S.flags.fumi) { await play(TX.fumi.first); S.flags.fumi = true; setGoal('genzo'); }
+    else await play(S.flags.learned ? TX.fumi.learned : TX.fumi.repeat);
+  },
+  async genzo() {
+    if (!S.flags.learned) {
+      await play(TX.genzo.teach);
+      learn('火', '灯り', '犬', '帰る', '水', '山');
+      S.dog.active = true; S.dog.x = S.x + 12; S.dog.y = S.y;
+      S.flags.learned = true; buildMapCanvas();
+      await play(TX.genzo.teachEnd);
+      setGoal('mountain');
+    } else if (S.clues.grimoire && !S.flags.genzoGrim) {
+      S.flags.genzoGrim = true;
+      await play(TX.genzo.grimoire);
+    } else await play(TX.genzo.repeat);
+  },
+  async yuki() {
+    if (S.flags.night) {
+      await play(TX.yuki.nightA); learn('雪');
+      await play(TX.yuki.nightB);
+      return;
+    }
+    await play(TX.yuki.a);
+    if (S.known['帰る']) await play(TX.yuki.understand);
+    await play(TX.yuki.b);
+    if (!S.known['名前']) S.known['名前'] = 'unknown';
+  },
+  async hokora() {
+    await play(TX.hokora.lines);
+    learn('名前', '声'); S.clues.grimoire = true;
+    await play(TX.hokora.after);
+    if (S.clues.note) await play(TX.hokora.latinKnown);
+  },
+  async yado() {
+    await play(TX.yado.intro);
+    if (!S.flags.yadoAsked) {
+      S.flags.yadoAsked = true;
+      if ((await ask(TX.yado.ask)).i === 0) { S.flags.wroteName = true; await play(TX.yado.wrote); }
+      else await play(TX.yado.notWrote);
+    }
+    await play(TX.yado.old);
+    S.clues.yado = true;
+  },
+  async akiya() {
+    if (S.clues.contract) return play(TX.akiya.after);
+    if (!S.flags.key) return play(TX.akiya.locked);
+    await play(TX.akiya.contract);
+    S.clues.contract = true;
+    setGoal('final');
+  },
+  async genzoya() { await play(S.flags.night ? TX.genzoya.night : TX.genzoya.day); },
+  async gate() { await play(S.flags.learned ? TX.gate.open : TX.gate.closed); },
+  async mIntro() { S.flags.mIntro = true; await play(TX.mIntro); setGoal('cabin'); },
+  async dogEv() {
+    const X = TX.dogEv;
+    S.flags.dogEv = true;
+    await play(X.before);
+    S.dog.away = true;
+    await play(X.run);
+    const o = await ask(X.ask);
+    if (o.kind === 'sato') { await satoPlay(X.sato); await eat(o.word); await play(X.satoAfter); return; }
+    S.dog.away = false; S.dog.x = S.x - 10; S.dog.y = S.y + 4;
+    if (o.kind === 'yama') { await play(X.yama); await possess(); }
+    else { addPresence(P.silent); await play(X.silent); }
+  },
+  async waterEv() {
+    const X = TX.waterEv;
+    S.flags.waterEv = true;
+    await play(X.before);
+    const o = await ask(X.ask);
+    if (o.kind === 'sato') { await satoPlay(X.sato); await eat(o.word); await play(X.satoAfter); }
+    else if (o.kind === 'yama') { await play(X.yama); await possess(); }
+    else { addPresence(P.silent); await play(X.silent); }
+  },
+  async voiceEv() {
+    const X = TX.voiceEv;
+    S.flags.voiceEv = true;
+    await play(X.before);
+    if ((await ask(X.ask)).i === 0) { await satoPlay(X.reply); await eat('先生'); await play(X.replyAfter); }
+    else { addPresence(P.voiceSilent); await play(X.silent); }
+  },
+  async cabin() {
+    const X = TX.cabin;
+    if (S.flags.cabin) { await play(X.done); return; }
+    await play(X.intro);
+    S.clues.note = true; S.clues.forged = true;
+    if (!S.known['雪']) S.known['雪'] = 'unknown';
+    await play(X.dark);
+    let o = await ask(X.askLight);
+    if (o.kind === 'sato') { await satoPlay(X.lightSato); await eat(o.word); await play(X.lightSatoAfter); }
+    else if (o.kind === 'yama') { await play(X.lightYama); await possess(); }
+    else { addPresence(P.silent); await play(X.lightSilent); }
+    await play(X.cold);
+    o = await ask(X.askFire);
+    if (o.kind === 'sato') { await satoPlay(X.fireSato); await eat(o.word); await play(X.fireSatoAfter); }
+    else { await play(X.fireYama); await possess(); }
+    S.flags.cabin = true;
+    await play(X.end);
+    setGoal('oku');
+  },
+  async okuIntro() { S.flags.okuIntro = true; await play(TX.okuIntro); setGoal('altar'); },
+  async stone() {
+    await play(TX.stone.lines);
+    S.clues.stone = true;
+    await play(S.clues.yado ? TX.stone.solved : TX.stone.unsolved);
+  },
+  async grave() {
+    if (S.flags.key) return play(TX.grave.done);
+    await play(TX.grave.lines);
+    S.clues.grave = true; S.flags.key = true;
+    if (!S.clues.contract) setGoal('key');
+  },
+  async nightIntro() {
+    S.flags.night = true;
+    buildMapCanvas(); updateHUD();
+    await play(TX.nightIntro);
+  },
+  async caught() {
+    flash(); sfx.caught();
+    await play(TX.caught.before);
+    await eatRandom();
+    goto('oku', 14, 27, 0);
+    await play(TX.caught.after);
+  },
+  async altar() {
+    const X = TX.altar, O = X.options;
+    if (!S.flags.altarSeen) { S.flags.altarSeen = true; await play(X.first); }
+    await play(X.call);
+    if (S.flags.wroteName) await play(X.wroteName);
+    for (;;) {
+      const opts = [{ ...O.A, v: 'A' }, { ...O.B, v: 'B' }, { ...O.kaeru, v: 'kaeru' }];
+      if (S.clues.yado && S.clues.stone) opts.push({ ...(S.known['名前'] === true ? O.sayoYama : O.sayo), v: 'C' });
+      if (S.clues.contract) opts.push({ ...O.village, v: 'T' });
+      if (S.known['私'] === true) opts.push({ ...O.ego, v: 'E' });
+      const v = opts[await choose(opts, X.speaker, X.prompt)].v;
+      if (v === 'A' || v === 'C' || v === 'T' || v === 'E') return ending(v);
+      if (v === 'B') {
+        if (!S.eaten.includes('帰る')) return ending('B');
+        addPresence(P.altarRetry); await play(X.bFail);
+      } else if (v === 'kaeru') {
+        if (S.eaten.includes('帰る')) { await play(X.kaeruMute); continue; }
+        await satoPlay(X.kaeruSay); await eat('帰る');
+      }
+    }
+  },
+};
+
+/* ---------- 結末 ---------- */
+async function ending(code) {
+  const E = TX.endings[code];
+  S.over = true; S.busy = true;
+  $('count').hidden = true;
+  const ec = $('endcard'); ec.querySelector('.t').textContent = E.title; ec.hidden = false;
+  await play(E.lines);
+  const summary = UI.endSummary.replace('{code}', E.title).replace('{n}', S.eaten.length).replace('{p}', S.possess);
+  await choose([{ label: UI.endPrompt }], ' ', summary);
+  resetGame();
+}
+
+/* ---------- 進行 ---------- */
+async function run(fn) {
+  if (S.busy || S.over) return;
+  S.busy = true; S.moving = false;
+  try { await fn(); } catch (e) { if (e !== END) console.error(e); }
+  finally { if (!S.over) { S.busy = false; idlePanel(); } }
+}
+function goto(map, tx, ty, dir) {
+  S.map = map; S.x = tx * 16 + 8; S.y = ty * 16 + 12; S.dir = dir;
+  S.dog.x = S.x; S.dog.y = S.y + 12;
+  S.detect = 0; S.breath = 100; S.gasp = false;
+  if (map === 'oku') S.ent = { x: 21 * 16 + 8, y: 13 * 16 + 12, wp: 2, cnt: 0, cntT: 0, lx: null, ly: null };
+  buildMapCanvas(); updateHUD(); setAmb();
+  $('count').hidden = true;
+}
+function resetGame() {
+  S = newState();
+  goto('village', 25, 14, 0);
+  $('endcard').hidden = true; $('journal').hidden = true; $('title').hidden = false;
+  D.mode = null; clearInterval(D.timer);
+  D.who.textContent = ''; D.txt.className = ''; D.txt.textContent = ''; D.ch.innerHTML = '';
+}
+function start() {
+  if (S.started) return;
+  $('title').hidden = true; S.started = true;
+  if (!AC) audioInit(); else AC.resume && AC.resume();
+  run(EV.intro);
+}
+
+/* ---------- 当たり判定 ---------- */
+function solidAt(px, py) {
+  const M = MAPS[S.map], ch = (M.g[Math.floor(py / 16)] || [])[Math.floor(px / 16)];
+  if (ch === undefined) return true;
+  if (ch === 'G') return !S.flags.learned;
+  return SOLID.has(ch);
+}
+function blocked(x, y) {
+  if (solidAt(x - 4, y - 3) || solidAt(x + 4, y - 3) || solidAt(x - 4, y + 2) || solidAt(x + 4, y + 2)) return true;
+  for (const a of visibleActors()) if (a.kind) {
+    const ax = a.tx * 16 + 8, ay = a.ty * 16 + 12;
+    if (Math.abs(x - ax) < 9 && Math.abs(y - ay) < 6) return true;
+  }
+  return false;
+}
+function nearest() {
+  let best = null, bd = CFG.player.interactRange;
+  for (const a of visibleActors()) {
+    const d = Math.hypot(S.x - (a.tx * 16 + 8), S.y - (a.ty * 16 + 8));
+    if (d < bd) { bd = d; best = a; }
+  }
+  return best;
+}
+function interact() { const a = nearest(); if (a) run(EV[a.id]); }
+
+/* ---------- 更新 ---------- */
+const keys = {};
+const down = (...cs) => cs.some(c => keys[c]);
+function update(dt) {
+  const B = CFG.breath;
+  let dx = (down('ArrowRight', 'KeyD') ? 1 : 0) - (down('ArrowLeft', 'KeyA') ? 1 : 0);
+  let dy = (down('ArrowDown', 'KeyS') ? 1 : 0) - (down('ArrowUp', 'KeyW') ? 1 : 0);
+  if (S.busy) { dx = 0; dy = 0; }
+  const wantHold = !S.busy && down('KeyX', 'ShiftLeft', 'ShiftRight');
+  S.holding = wantHold && !S.gasp && S.breath > 0;
+  if (S.holding) {
+    S.breath -= B.drain * dt;
+    if (S.breath <= 0) {
+      S.breath = 0; S.holding = false; S.gasp = true;
+      if (S.map === 'oku' && S.ent && Math.hypot(S.x - S.ent.x, S.y - S.ent.y) < 140) S.detect = Math.min(100, S.detect + B.gaspAlert);
+    }
+  } else {
+    S.breath = Math.min(100, S.breath + B.regen * dt);
+    if (S.gasp && S.breath > B.recoverAt) S.gasp = false;
+  }
+  if (dx && dy) { dx *= .7071; dy *= .7071; }
+  S.moving = !!(dx || dy);
+  const sp = CFG.player.speed * (S.holding ? CFG.player.holdSpeedMul : 1);
+  if (S.moving) {
+    S.dir = Math.abs(dy) >= Math.abs(dx) ? (dy < 0 ? 0 : 2) : (dx < 0 ? 3 : 1);
+    S.step += dt * 8;
+    const nx = S.x + dx * sp * dt; if (!blocked(nx, S.y)) S.x = nx;
+    const ny = S.y + dy * sp * dt; if (!blocked(S.x, ny)) S.y = ny;
+  }
+  // 犬
+  const g = S.dog;
+  if (g.active && !g.away) {
+    const ox = S.x - g.x, oy = S.y + 6 - g.y, d = Math.hypot(ox, oy);
+    if (d > 90) { g.x = S.x; g.y = S.y + 8; }
+    else if (d > 18) {
+      const mx = ox / d * 54 * dt, my = oy / d * 54 * dt;
+      if (!solidAt(g.x + mx, g.y)) g.x += mx;
+      if (!solidAt(g.x, g.y + my)) g.y += my;
+      if (Math.abs(mx) > .01) g.face = mx < 0 ? -1 : 1;
+    }
+  }
+  if (S.map === 'oku') updateEnt(dt);
+  if (S.busy || S.over) return;
+  // 出来事の起点
+  const ty = Math.floor(S.y / 16);
+  if (S.map === 'village') {
+    if (ty <= 0) { goto('mountain', 12, 38, 0); if (!S.flags.mIntro) run(EV.mIntro); }
+  } else if (S.map === 'mountain') {
+    if (ty >= 39) { goto('village', 14, 2, 2); if (S.flags.key && !S.flags.night) run(EV.nightIntro); }
+    else if (ty <= 0) {
+      if (S.flags.cabin) { goto('oku', 14, 27, 0); if (!S.flags.okuIntro) run(EV.okuIntro); }
+      else { S.y = 28; run(async () => { await say('', UI.notCabinYet); }); }
+    }
+    else if (ty <= 31 && !S.flags.dogEv && S.dog.active) run(EV.dogEv);
+    else if (ty <= 26 && !S.flags.waterEv) run(EV.waterEv);
+    else if (ty <= 20 && !S.flags.voiceEv) run(EV.voiceEv);
+  } else if (S.map === 'oku') {
+    if (ty >= 29) goto('mountain', 12, 1, 2);
+  }
+  const n = nearest(), id = n ? n.id : null;
+  if (id !== S.nearId) { S.nearId = id; idlePanel(); }
+}
+function updateEnt(dt) {
+  const e = S.ent; if (!e) return;
+  const d = Math.hypot(S.x - e.x, S.y - e.y);
+  const Rr = ST.radius + S.presence * ST.radiusPerPresence;
+  let rate = 0;
+  if (!S.busy && d < Rr) {
+    const close = 1 - d / Rr;
+    if (S.moving) rate = (S.holding ? ST.moveHoldRate : ST.moveRate) * (close + .35);
+    else if (!S.holding && d < Rr * ST.stillRange) rate = ST.stillRate * close;
+  }
+  if (rate > 0) { S.detect = Math.min(100, S.detect + rate * dt); e.lx = S.x; e.ly = S.y; }
+  else S.detect = Math.max(0, S.detect - ST.decay * dt);
+  let tx, ty, sp;
+  if (S.detect > ST.chaseAt && e.lx !== null) { tx = e.lx; ty = e.ly; sp = ST.chaseSpeed; }
+  else if (e.lx !== null && S.detect > 5) { tx = e.lx; ty = e.ly; sp = ST.patrolSpeed; if (Math.hypot(tx - e.x, ty - e.y) < 4) e.lx = null; }
+  else {
+    e.lx = null;
+    const w = ST.waypoints[e.wp]; tx = w[0] * 16 + 8; ty = w[1] * 16 + 12; sp = ST.patrolSpeed;
+    if (Math.hypot(tx - e.x, ty - e.y) < 4) e.wp = (e.wp + 1) % ST.waypoints.length;
+  }
+  if (!S.busy) {
+    const md = Math.hypot(tx - e.x, ty - e.y) || 1;
+    e.x += (tx - e.x) / md * Math.min(sp * dt, md); e.y += (ty - e.y) / md * Math.min(sp * dt, md);
+  }
+  e.cntT += dt;
+  if (e.cntT > ST.countInterval) { e.cntT = 0; e.cnt = (e.cnt + 1) % ST.counts.length; }
+  S.hbT -= dt;
+  if (d < Rr * 1.6 && S.hbT <= 0) { sfx.thump(); S.hbT = .32 + .9 * (d / (Rr * 1.6)); }
+  if (!S.busy && (S.detect >= 100 || (d < ST.catchDistance && !S.holding))) run(EV.caught);
+}
+
+/* ---------- 描画 ---------- */
+function render() {
+  const M = MAPS[S.map];
+  const mw = M.w * 16, mh = M.h * 16;
+  let cx = Math.round(clamp(S.x - VW / 2, 0, Math.max(0, mw - VW)));
+  let cy = Math.round(clamp(S.y - 8 - VH / 2, 0, Math.max(0, mh - VH)));
+  if (S.shake > 0) { cx += Math.round((Math.random() - .5) * 6); cy += Math.round((Math.random() - .5) * 6); }
+  ctx.fillStyle = '#07080d'; ctx.fillRect(0, 0, VW, VH);
+  ctx.drawImage(mapCanvas, -cx, -cy);
+
+  const list = [];
+  for (const a of visibleActors()) if (a.kind) list.push({ y: a.ty * 16 + 12, f: () => person(a.tx * 16 + 8 - cx, a.ty * 16 + 12 - cy, LOOK[a.kind], 2, 0) });
+  if (S.dog.active && !S.dog.away) list.push({ y: S.dog.y, f: () => drawDog(S.dog.x - cx, S.dog.y - cy, S.dog.face) });
+  const fr = S.moving ? [0, 1, 0, 2][Math.floor(S.step) % 4] : 0;
+  list.push({ y: S.y, f: () => person(S.x - cx, S.y - cy, LOOK.player, S.dir, fr) });
+  list.sort((a, b) => a.y - b.y).forEach(o => o.f());
+
+  // 闇
+  const night = S.map === 'village' && S.flags.night;
+  const px = S.x - cx, py = S.y - 8 - cy;
+  const lightR = M.light * (S.eaten.includes('灯り') ? .55 : 1) + Math.sin(S.t * 13) * 1.5 + Math.random();
+  dctx.globalCompositeOperation = 'source-over';
+  dctx.clearRect(0, 0, VW, VH);
+  dctx.fillStyle = `rgba(4,5,10,${night ? M.nightDark : M.dark})`; dctx.fillRect(0, 0, VW, VH);
+  dctx.globalCompositeOperation = 'destination-out';
+  const cut = (x, y, r, a) => {
+    const gr = dctx.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(.55, `rgba(0,0,0,${a * .8})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    dctx.fillStyle = gr; dctx.fillRect(x - r, y - r, r * 2, r * 2);
+  };
+  cut(px, py, lightR, 1);
+  for (const [lx, ly] of M.lights) if (!night && lx - cx > -40 && lx - cx < VW + 40 && ly - cy > -40 && ly - cy < VH + 40) cut(lx - cx, ly - cy, 30, .75);
+  ctx.drawImage(dark, 0, 0);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const warm = ctx.createRadialGradient(px, py, 0, px, py, lightR * .6);
+  warm.addColorStop(0, S.eaten.includes('火') ? 'rgba(90,120,200,.06)' : 'rgba(232,178,92,.09)'); warm.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = warm; ctx.fillRect(0, 0, VW, VH);
+  ctx.restore();
+  if (S.eaten.includes('火')) { ctx.fillStyle = 'rgba(50,80,150,.12)'; ctx.fillRect(0, 0, VW, VH); }
+
+  // 十二様
+  const cnt = $('count');
+  if (S.map === 'oku' && S.ent) {
+    const e = S.ent, d = Math.hypot(S.x - e.x, S.y - e.y);
+    const alpha = d < lightR ? 1 : clamp(1 - (d - lightR) / 140, .22, 1);
+    drawEnt(e.x - cx, e.y - cy, alpha);
+    if (d < 170 && !S.over) {
+      cnt.hidden = false;
+      cnt.textContent = '……' + ST.counts[e.cnt];
+      cnt.style.left = ((e.x - cx) / VW * 100) + '%';
+      cnt.style.top = ((e.y - 30 - cy) / VH * 100) + '%';
+      cnt.style.opacity = clamp(1.2 - d / 170, 0, 1);
+    } else cnt.hidden = true;
+  }
+
+  // 雪
+  if (S.map !== 'oku') {
+    ctx.fillStyle = 'rgba(235,240,248,.75)';
+    for (const f of flakes) ctx.fillRect(Math.round(f.x), Math.round(f.y), f.s > .7 ? 2 : 1, 1);
+  }
+  // 調べられるもの
+  if (!S.busy && S.nearId) {
+    const a = visibleActors().find(o => o.id === S.nearId);
+    if (a && Math.floor(S.t * 3) % 2 === 0) {
+      const mx = Math.round(a.tx * 16 + 8 - cx), my = Math.round(a.ty * 16 - (a.kind ? 14 : 6) - cy);
+      R(mx - 1, my, 3, 1, '#e8b25c'); R(mx, my - 1, 1, 3, '#e8b25c');
+    }
+  }
+  // 気配・発見の赤
+  const danger = S.presence / 100 * .35 + (S.map === 'oku' ? S.detect / 100 * (.55 + .15 * Math.sin(S.t * 10)) : 0);
+  if (danger > .01) {
+    const vg = ctx.createRadialGradient(VW / 2, VH / 2, VH * .35, VW / 2, VH / 2, VW * .65);
+    vg.addColorStop(0, 'rgba(120,0,0,0)'); vg.addColorStop(1, `rgba(120,0,0,${Math.min(.85, danger)})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, VW, VH);
+  }
+  if (S.holding) {
+    const hv = ctx.createRadialGradient(VW / 2, VH / 2, VH * .2, VW / 2, VH / 2, VW * .6);
+    hv.addColorStop(0, 'rgba(0,0,0,0)'); hv.addColorStop(1, 'rgba(0,0,0,.55)');
+    ctx.fillStyle = hv; ctx.fillRect(0, 0, VW, VH);
+  }
+}
+function updateHUD() {
+  const M = MAPS[S.map];
+  $('area').textContent = T(S.map === 'village' && S.flags.night ? M.nightName : M.name);
+  const words = S.eaten.map(w => '■'.repeat(w.length)).join(' ');
+  $('eatenHud').innerHTML = S.eaten.length ? esc(UI.eatenHud) + '<span>' + words + '</span>' : '';
+  $('mBreath').hidden = S.map !== 'oku';
+  $('mPres').hidden = S.map === 'village';
+  $('mPoss').hidden = !S.flags.learned;
+}
+function tickHUD() {
+  $('mPres').querySelector('b').style.width = S.presence + '%';
+  $('mBreath').querySelector('b').style.width = S.breath + '%';
+  $('mPoss').querySelector('b').style.width = S.possess + '%';
+}
+
+/* ---------- 言葉帳 ---------- */
+const jEl = $('journal');
+function toggleJ(open) {
+  if (!open) { jEl.hidden = true; return; }
+  let h = `<h2>${esc(UI.journalTitle)}</h2><p class="rule">${fmt(T(UI.journalRule))}</p>`;
+  const ws = CFG.words.filter(w => w.yama && S.known[w.sato]);
+  const total = CFG.words.filter(w => w.yama).length;
+  h += `<h3>${esc(UI.journalNames)}　${ws.length}／${total}</h3>`;
+  h += '<table><thead><tr><th>里の言葉</th><th>山言葉</th></tr></thead><tbody>';
+  if (!ws.length) h += `<tr><td colspan="2">${esc(UI.journalEmpty)}</td></tr>`;
+  for (const w of ws) {
+    const sato = S.known[w.sato] === 'unknown' ? '？' : T(w.sato);
+    h += `<tr class="${S.eaten.includes(w.sato) ? 'gone' : ''}"><td>${fmt(sato)}</td><td class="y">${esc(w.yama)}</td></tr>`;
+  }
+  h += `</tbody></table><h3>${esc(UI.journalClues)}</h3><ul>`;
+  const found = ['yado', 'grimoire', 'note', 'forged', 'stone', 'grave', 'contract'].filter(k => S.clues[k]);
+  if (S.clues.grimoire && S.clues.note) found.splice(found.indexOf('grimoire') + 1, 0, 'latin');
+  for (const k of found) h += `<li>${fmt(T(UI.clues[k]))}</li>`;
+  if (S.clues.yado && S.clues.stone) h += `<li class="name">${esc(UI.journalSayo)}</li>`;
+  if (!found.length) h += `<li>${esc(UI.journalNoClues)}</li>`;
+  h += `</ul><div class="close">${esc(UI.journalClose)}</div>`;
+  jEl.innerHTML = h; jEl.hidden = false;
+}
+jEl.addEventListener('click', () => toggleJ(false));
+
+/* ---------- 入力 ---------- */
+function onPress(c) {
+  const ok = c === 'KeyZ' || c === 'Enter' || c === 'Space';
+  if (!S.started) { if (ok) start(); return; }
+  if (!jEl.hidden) { if (c === 'KeyJ' || c === 'Escape' || ok) toggleJ(false); return; }
+  if (D.mode === 'choice') {
+    const n = D.opts.length;
+    if (c === 'ArrowUp' || c === 'KeyW') { D.sel = (D.sel + n - 1) % n; markSel(); }
+    else if (c === 'ArrowDown' || c === 'KeyS') { D.sel = (D.sel + 1) % n; markSel(); }
+    else if (ok) pick(D.sel);
+    else if (/^Digit[1-9]$/.test(c)) { const i = +c.slice(5) - 1; if (i < n) pick(i); }
+    return;
+  }
+  if (D.mode === 'say') { if (ok) advance(); return; }
+  if (c === 'KeyJ') { if (!S.over) toggleJ(true); return; }
+  if (ok && !S.busy && !S.over) interact();
+}
+addEventListener('keydown', e => {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+  keys[e.code] = true;
+  if (!e.repeat) onPress(e.code);
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+$('title').addEventListener('click', start);
+$('startBtn').addEventListener('click', e => { e.stopPropagation(); start(); });
+$('panel').addEventListener('click', () => { if (D.mode === 'say') advance(); });
+document.querySelectorAll('#touch [data-k]').forEach(b => {
+  const k = b.dataset.k;
+  const on = e => { e.preventDefault(); keys[k] = true; if (D.mode === 'choice' && (k === 'ArrowUp' || k === 'ArrowDown')) onPress(k); };
+  const off = e => { e.preventDefault(); keys[k] = false; };
+  b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off);
+  b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
+});
+$('tA').addEventListener('click', () => onPress('KeyZ'));
+$('tJ').addEventListener('click', () => onPress('KeyJ'));
+
+/* ---------- ループ ---------- */
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  S.t += dt;
+  if (S.shake > 0) S.shake -= dt;
+  for (const f of flakes) {
+    f.y += f.v * dt; f.x += (Math.sin(S.t * .7 + f.s * 6) * 8 - 6) * dt;
+    if (f.y > VH) { f.y = -2; f.x = Math.random() * VW; }
+    if (f.x < -2) f.x = VW;
+  }
+  if (S.started && !S.over && jEl.hidden) update(dt);
+  render(); tickHUD();
+  requestAnimationFrame(loop);
+}
+resetGame();
+requestAnimationFrame(loop);
+})();
+</script>
