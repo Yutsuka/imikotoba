@@ -1,6 +1,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>忌み言葉</title>
+<link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Shippori+Mincho:wght@400;700;800&display=swap">
@@ -121,10 +122,10 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
     <div id="title">
       <div class="tt">忌み言葉</div>
       <div class="side">
-        <div class="era">一九九九年 霜月 ― 猿啼</div>
-        <div class="rule">山では、<em>里の言葉</em>で物を呼ぶな。<br>呼んだものは、十二様に喰われる。</div>
+        <div class="era">一九九九年 十二月 ― 猿啼</div>
+        <div class="rule">十二日の山で、<em>里の言葉</em>を口にするな。<br>口にした名は、十二様に数えられる。</div>
         <button id="startBtn" type="button">はじめる</button>
-        <div class="note">音が出ます ／ 試作版・約15分</div>
+        <div class="note">音が出ます ／ 試作版・約20分</div>
       </div>
     </div>
   </div>
@@ -255,9 +256,12 @@ function buildOku() {
     if (r > 1 || hsh(x, y, 4) < .11) g[y][x] = '#';
   }
   const clear = (cx, cy, r) => { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (Math.hypot(x - cx, y - cy) <= r) g[y][x] = '.'; };
-  clear(14.5, 27, 2); clear(14.5, 3, 3); clear(5, 12, 1.6); clear(24, 10, 1.6);
+  clear(14.5, 27, 2); clear(14.5, 3, 3); clear(5, 12, 1.6); clear(24, 10, 1.6); clear(22, 21, 1.6); clear(9, 22, 2.2);
   for (let y = 26; y < H; y++) { g[y][14] = ','; g[y][15] = ','; }
-  g[2][14] = 'A'; g[2][15] = 'A'; g[12][5] = 'B'; g[10][24] = 'X';
+  // 岩座のまわりだけ雪が解けている
+  for (let y = 0; y < 7; y++) for (let x = 10; x < 20; x++) if (g[y][x] === '.' && Math.hypot(x - 14.5, y - 2.5) <= 2.3 + hsh(x, y, 8) * .9) g[y][x] = 'm';
+  for (let y = 20; y <= 24; y++) g[y][9] = 'f';   // 裸足と蹄の足跡
+  g[2][14] = 'A'; g[2][15] = 'A'; g[12][5] = 'B'; g[10][24] = 'X'; g[21][22] = 'Y';
   return g;
 }
 
@@ -270,7 +274,7 @@ for (const [id, conf] of Object.entries(CFG.maps)) {
   MAPS[id] = M;
 }
 const ACTORS = CFG.actors;
-const SOLID = new Set(['#', 'H', 'T', 'W', 'D', 'S', 'K', 'A', 'B', 'X', '~', 'R']);
+const SOLID = new Set(['#', 'H', 'T', 'W', 'D', 'S', 'K', 'A', 'B', 'X', 'Y', '~', 'R']);
 const visibleActors = () => ACTORS[S.map].filter(a => !(a.night === 'hide' && S.flags.night));
 
 /* ---------- 状態 ---------- */
@@ -280,6 +284,8 @@ function newState() {
     map: 'village', x: 0, y: 0, dir: 0, step: 0, moving: false,
     // known: 里の言葉 → true（意味がわかる）／'unknown'（山言葉だけ聞いた）
     flags: {}, eaten: [], known: {}, clues: {}, goal: '',
+    // 名納めの手順（湯・餅・名・数）。主人公は気づいていない
+    rite: { yu: false, mochi: false, na: false, kazu: false },
     presence: 0, possess: 0, breath: 100, holding: false, gasp: false, detect: 0, hbT: 0,
     busy: false, over: false, started: false, nearId: null, shake: 0,
     dog: { active: false, away: false, x: 0, y: 0, face: 1 }, ent: null, t: 0,
@@ -313,7 +319,7 @@ function drawTile(g2, M, x, y) {
     case ',': path(); break;
     case 'G':
       path();
-      if (!S.flags.learned) { F(0, 5, 16, 2, '#c4ad78'); F(0, 7, 16, 1, '#8a774c'); F(3, 7, 2, 4, '#ece8dc'); F(10, 7, 2, 4, '#ece8dc'); }
+      if (!S.flags.morning) { F(0, 5, 16, 2, '#c4ad78'); F(0, 7, 16, 1, '#8a774c'); F(3, 7, 2, 4, '#ece8dc'); F(10, 7, 2, 4, '#ece8dc'); }
       break;
     case '#': ground(); tree(g2, px, py, x, y); break;
     case 'T':
@@ -350,6 +356,23 @@ function drawTile(g2, M, x, y) {
       ground();
       F(0, 4, 16, 12, '#3d3e45'); F(0, 4, 16, 2, '#d7dce5'); F(0, 8, 16, 2, '#c4ad78');
       F(4, 10, 2, 4, '#ece8dc'); F(11, 10, 2, 4, '#ece8dc'); F(0, 15, 16, 1, '#26272c');
+      break;
+    case 'Y': // 先生の木：皮が四角く剥がれ、根元にメガネ
+      ground();
+      F(6, -10, 4, 24, '#2a1e16'); F(3, -10, 3, 1, '#2a1e16'); F(5, -9, 1, 2, '#2a1e16');
+      F(10, -8, 3, 1, '#2a1e16'); F(10, -9, 1, 1, '#2a1e16'); F(6, -11, 4, 1, '#e4e9f0');
+      F(7, 0, 2, 3, '#b9ab92');
+      F(3, 14, 2, 1, '#c8ccd4'); F(6, 14, 2, 1, '#c8ccd4'); F(5, 14, 1, 1, '#8a8f99');
+      break;
+    case 'f': // 裸足の跡と、割れた蹄の跡
+      ground();
+      F(3, 2, 2, 3, '#8f95a1'); F(3, 10, 2, 3, '#8f95a1');
+      F(10, 5, 1, 2, '#6f7581'); F(12, 5, 1, 2, '#6f7581'); F(10, 13, 1, 2, '#6f7581'); F(12, 13, 1, 2, '#6f7581');
+      break;
+    case 'm': // 解けた雪の下の土（縁には雪が残る）
+      ground();
+      F(1, 1, 14, 14, '#615c55'); F(3, 0, 10, 16, '#615c55'); F(0, 3, 16, 10, '#615c55');
+      for (let i = 0; i < 5; i++) F(Math.floor(hsh(x, y, i + 60) * 14), Math.floor(hsh(x, y, i + 70) * 14), 2, 1, i < 2 ? M.speck : '#4d4943');
       break;
     case 'B':
       ground();
@@ -409,6 +432,13 @@ function drawDog(sx, sy, face) {
 }
 function drawEnt(sx, sy, alpha) {
   const L = Math.round(sx - 6 + Math.sin(S.t * 1.7)), Tp = Math.round(sy - 28);
+  // 影だけに角がある
+  ctx.save(); ctx.globalAlpha = alpha * .6;
+  const hx = L + 6, hy = Tp + 27;
+  R(hx, hy, 15, 2, '#000'); R(hx + 13, hy - 1, 4, 4, '#000');
+  R(hx + 16, hy - 3, 1, 2, '#000'); R(hx + 17, hy - 4, 1, 2, '#000');
+  R(hx + 16, hy + 3, 1, 2, '#000'); R(hx + 17, hy + 4, 1, 2, '#000');
+  ctx.restore();
   ctx.save(); ctx.globalAlpha = alpha;
   R(L + 1, Tp, 10, 3, '#040406'); R(L, Tp + 2, 12, 24, '#040406');
   R(L + 2, Tp + 9, 8, 19, '#d6d6dc'); R(L + 3, Tp + 3, 6, 7, '#c9c1b8'); R(L + 3, Tp + 3, 6, 1, '#040406');
@@ -470,6 +500,7 @@ const sfx = {
   thump: () => tone('sine', 70, 38, .18, .35),
   eat: () => { tone('sawtooth', 240, 30, 1.6, .1); tone('sawtooth', 247, 33, 1.6, .08); noiseBurst(.8, .25, 600); },
   caught: () => { noiseBurst(1.2, .5, 300); tone('sawtooth', 120, 25, 1.4, .15); },
+  knock: (v = .3) => { noiseBurst(.05, v, 1900); tone('sine', 320, 180, .07, v * .5); },
 };
 
 /* ---------- 文字窓 ---------- */
@@ -572,7 +603,7 @@ async function eat(w) {
   S.eaten.push(w);
   addPresence(CFG.rules.presencePerEat);
   if (w === '犬') S.dog.active = false;
-  sfx.eat(); await eatFx(w); updateHUD();
+  sfx.knock(.5); sfx.eat(); await eatFx(w); updateHUD();
   if (S.eaten.length >= CFG.rules.eatLimit) { await ending('D'); throw END; }
 }
 const eatRandom = () => { const pool = CFG.rules.eatPool.filter(w => !S.eaten.includes(w)); return eat(pool[Math.floor(Math.random() * pool.length)]); };
@@ -589,24 +620,67 @@ async function possess() {
 const learn = (...ws) => { for (const w of ws) S.known[w] = true; };
 const addPresence = n => { S.presence = Math.min(100, S.presence + n); };
 const P = CFG.rules.presence;
+const riteCount = () => Object.values(S.rite).filter(Boolean).length;
+// 里の言葉／山言葉／黙る の三択に共通する結果
+async function branch(X, o) {
+  if (o.kind === 'sato') { await satoPlay(X.sato); await eat(o.word); await play(X.satoAfter); }
+  else if (o.kind === 'yama') { await play(X.yama); await possess(); }
+  else { addPresence(P.silent); await play(X.silent); }
+}
+// 数えられた言葉は、主人公にだけ聞き取れない
+async function heard() {
+  const X = TX.fumi, w = S.eaten.find(k => X.heardLines[k]);
+  if (!w) return;
+  await say('女将・フミ', X.heardLines[w]);
+  await play(X.heard);
+}
 
 /* ---------- 出来事 ---------- */
 const EV = {
   async intro() { await play(TX.intro); setGoal('fumi'); },
   async fumi() {
-    if (S.flags.night) await play(TX.fumi.night);
-    else if (!S.flags.fumi) { await play(TX.fumi.first); S.flags.fumi = true; setGoal('genzo'); }
-    else await play(S.flags.learned ? TX.fumi.learned : TX.fumi.repeat);
+    const X = TX.fumi;
+    if (S.flags.night) {
+      await play(X.night);
+      if (!S.flags.kouAsked) {
+        S.flags.kouAsked = true;
+        await say(X.askKou.speaker, X.askKou.text);
+        if ((await ask(X.askKou)).i === 0) { S.rite.kazu = true; await play(X.kouYes); }
+        else await play(X.kouNo);
+      } else await play(X.nightAfter);
+      await heard();
+      return;
+    }
+    if (!S.flags.fumi) {
+      await play(X.first); S.flags.fumi = true;
+      if (!S.flags.learned) { setGoal('genzo'); return; }
+    }
+    if (!S.flags.learned) return play(X.repeat);
+    if (S.flags.morning) { await play(X.day2); await heard(); return; }
+    // 夕方から翌朝まで。どれも「もてなし」として勧められる
+    await play(X.evening);
+    if ((await ask(X.askBath)).i === 0) { S.rite.yu = true; await play(X.bathYes); } else await play(X.bathNo);
+    await play(X.supper);
+    if ((await ask(X.askMochi)).i === 0) { S.rite.mochi = true; await play(X.mochiYes); } else await play(X.mochiNo);
+    await play(X.sleep);
+    S.flags.morning = true; buildMapCanvas(); updateHUD();
+    await play(X.charm);
+    const c = (await ask(X.askCharm)).i;
+    if (c === 0) { S.flags.charm = true; S.rite.na = true; await play(X.charmWrote); }
+    else if (c === 1) { S.flags.charm = true; await play(X.charmBlank); }
+    else await play(X.charmNo);
+    await play(X.morning);
+    setGoal('mountain');
   },
   async genzo() {
     if (!S.flags.learned) {
       await play(TX.genzo.teach);
       learn('火', '灯り', '犬', '帰る', '水', '山');
       S.dog.active = true; S.dog.x = S.x + 12; S.dog.y = S.y;
-      S.flags.learned = true; buildMapCanvas();
+      S.flags.learned = true;
       await play(TX.genzo.teachEnd);
-      setGoal('mountain');
-    } else if (S.clues.grimoire && !S.flags.genzoGrim) {
+      setGoal('inn');
+    } else if (S.clues.crown && !S.flags.genzoGrim) {
       S.flags.genzoGrim = true;
       await play(TX.genzo.grimoire);
     } else await play(TX.genzo.repeat);
@@ -624,29 +698,27 @@ const EV = {
   },
   async hokora() {
     await play(TX.hokora.lines);
-    learn('名前', '声'); S.clues.grimoire = true;
+    learn('名前', '声'); S.clues.crown = true; S.clues.grimoire = true;
     await play(TX.hokora.after);
-    if (S.clues.note) await play(TX.hokora.latinKnown);
   },
   async yado() {
-    await play(TX.yado.intro);
-    if (!S.flags.yadoAsked) {
-      S.flags.yadoAsked = true;
-      if ((await ask(TX.yado.ask)).i === 0) { S.flags.wroteName = true; await play(TX.yado.wrote); }
-      else await play(TX.yado.notWrote);
-    }
-    await play(TX.yado.old);
+    if (S.clues.yado) return play(TX.yado.done);
+    await play(TX.yado.lines);
     S.clues.yado = true;
   },
   async akiya() {
     if (S.clues.contract) return play(TX.akiya.after);
     if (!S.flags.key) return play(TX.akiya.locked);
     await play(TX.akiya.contract);
-    S.clues.contract = true;
+    S.clues.contract = true; S.clues.shidai = true; S.clues.sold = true; S.flags.blank = true;
     setGoal('final');
   },
   async genzoya() { await play(S.flags.night ? TX.genzoya.night : TX.genzoya.day); },
-  async gate() { await play(S.flags.learned ? TX.gate.open : TX.gate.closed); },
+  async gate() {
+    if (S.flags.morning) return play(TX.gate.open);
+    await play(TX.gate.closed);
+    if (S.flags.learned) await say('', UI.notMorningYet);
+  },
   async mIntro() { S.flags.mIntro = true; await play(TX.mIntro); setGoal('cabin'); },
   async dogEv() {
     const X = TX.dogEv;
@@ -657,21 +729,17 @@ const EV = {
     const o = await ask(X.ask);
     if (o.kind === 'sato') { await satoPlay(X.sato); await eat(o.word); await play(X.satoAfter); return; }
     S.dog.away = false; S.dog.x = S.x - 10; S.dog.y = S.y + 4;
-    if (o.kind === 'yama') { await play(X.yama); await possess(); }
-    else { addPresence(P.silent); await play(X.silent); }
+    await branch(X, o);
   },
   async waterEv() {
-    const X = TX.waterEv;
     S.flags.waterEv = true;
-    await play(X.before);
-    const o = await ask(X.ask);
-    if (o.kind === 'sato') { await satoPlay(X.sato); await eat(o.word); await play(X.satoAfter); }
-    else if (o.kind === 'yama') { await play(X.yama); await possess(); }
-    else { addPresence(P.silent); await play(X.silent); }
+    await play(TX.waterEv.before);
+    await branch(TX.waterEv, await ask(TX.waterEv.ask));
   },
   async voiceEv() {
     const X = TX.voiceEv;
     S.flags.voiceEv = true;
+    if (S.eaten.includes('名前')) return play(X.noName);
     await play(X.before);
     if ((await ask(X.ask)).i === 0) { await satoPlay(X.reply); await eat('先生'); await play(X.replyAfter); }
     else { addPresence(P.voiceSilent); await play(X.silent); }
@@ -680,8 +748,7 @@ const EV = {
     const X = TX.cabin;
     if (S.flags.cabin) { await play(X.done); return; }
     await play(X.intro);
-    S.clues.note = true; S.clues.forged = true;
-    if (!S.known['雪']) S.known['雪'] = 'unknown';
+    S.clues.note = true;
     await play(X.dark);
     let o = await ask(X.askLight);
     if (o.kind === 'sato') { await satoPlay(X.lightSato); await eat(o.word); await play(X.lightSatoAfter); }
@@ -690,12 +757,32 @@ const EV = {
     await play(X.cold);
     o = await ask(X.askFire);
     if (o.kind === 'sato') { await satoPlay(X.fireSato); await eat(o.word); await play(X.fireSatoAfter); }
-    else { await play(X.fireYama); await possess(); }
+    else if (o.kind === 'yama') { await play(X.fireYama); await possess(); }
+    else {
+      // 十二日に木を切ったので、まとめて数えられる
+      await play(X.fireCut); await eatRandom(); await eatRandom(); await play(X.fireCutAfter);
+    }
     S.flags.cabin = true;
     await play(X.end);
     setGoal('oku');
   },
   async okuIntro() { S.flags.okuIntro = true; await play(TX.okuIntro); setGoal('altar'); },
+  async forkEv() {
+    S.flags.forkEv = true;
+    await play(TX.forkEv.before);
+    await branch(TX.forkEv, await ask(TX.forkEv.ask));
+  },
+  async senseiTree() {
+    const X = TX.treeEv;
+    if (!S.flags.treeEv) {
+      S.flags.treeEv = true;
+      await play(X.before);
+      await branch(X, await ask(X.ask));
+    }
+    await play(X.look);
+    S.clues.bark = true;
+  },
+  async prints() { await play(TX.prints.lines); S.clues.prints = true; },
   async stone() {
     await play(TX.stone.lines);
     S.clues.stone = true;
@@ -713,7 +800,7 @@ const EV = {
     await play(TX.nightIntro);
   },
   async caught() {
-    flash(); sfx.caught();
+    flash(); sfx.caught(); sfx.knock(.6);
     await play(TX.caught.before);
     await eatRandom();
     goto('oku', 14, 27, 0);
@@ -723,15 +810,28 @@ const EV = {
     const X = TX.altar, O = X.options;
     if (!S.flags.altarSeen) { S.flags.altarSeen = true; await play(X.first); }
     await play(X.call);
-    if (S.flags.wroteName) await play(X.wroteName);
     for (;;) {
-      const opts = [{ ...O.A, v: 'A' }, { ...O.B, v: 'B' }, { ...O.kaeru, v: 'kaeru' }];
-      if (S.clues.yado && S.clues.stone) opts.push({ ...(S.known['名前'] === true ? O.sayoYama : O.sayo), v: 'C' });
-      if (S.clues.contract) opts.push({ ...O.village, v: 'T' });
+      const opts = [];
+      if (S.flags.charm) opts.push({ ...O.charm, v: 'charm' });
+      if (!S.eaten.includes('名前')) opts.push({ ...O.name, v: 'name' });
+      opts.push({ ...O.B, v: 'B' }, { ...O.kaeru, v: 'kaeru' });
+      if (S.clues.yado || S.clues.stone) opts.push({ ...O.sayo, v: 'C' });
+      if (S.clues.grimoire) opts.push({ ...O.ask, v: 'ask' });
+      if (S.flags.blank && S.clues.contract && S.clues.shidai && S.clues.grave) opts.push({ ...O.village, v: 'T' });
       if (S.known['私'] === true) opts.push({ ...O.ego, v: 'E' });
-      const v = opts[await choose(opts, X.speaker, X.prompt)].v;
-      if (v === 'A' || v === 'C' || v === 'T' || v === 'E') return ending(v);
-      if (v === 'B') {
+      const v = opts[await choose(opts, ' ', X.prompt)].v;
+      if (v === 'C' || v === 'T' || v === 'E') return ending(v);
+      if (v === 'charm') {
+        // 五つの手順を踏んだ名だけが納められる
+        const r = S.rite;
+        if (r.yu && r.mochi && r.na && r.kazu) return ending('A');
+        addPresence(P.altarRetry); await play(r.na ? X.charmShort : X.charmBlank);
+      } else if (v === 'name') {
+        // 声で名乗っても名納めにはならない。十二日の山で里の名を口にしただけ
+        await satoPlay(X.nameSay); await eat('名前');
+      } else if (v === 'ask') {
+        await satoPlay(X.askName); await eatRandom();
+      } else if (v === 'B') {
         if (!S.eaten.includes('帰る')) return ending('B');
         addPresence(P.altarRetry); await play(X.bFail);
       } else if (v === 'kaeru') {
@@ -787,7 +887,7 @@ function start() {
 function solidAt(px, py) {
   const M = MAPS[S.map], ch = (M.g[Math.floor(py / 16)] || [])[Math.floor(px / 16)];
   if (ch === undefined) return true;
-  if (ch === 'G') return !S.flags.learned;
+  if (ch === 'G') return !S.flags.morning;
   return SOLID.has(ch);
 }
 function blocked(x, y) {
@@ -866,6 +966,8 @@ function update(dt) {
     else if (ty <= 20 && !S.flags.voiceEv) run(EV.voiceEv);
   } else if (S.map === 'oku') {
     if (ty >= 29) goto('mountain', 12, 1, 2);
+    else if (ty <= 21 && !S.flags.forkEv) run(EV.forkEv);
+    else if (!S.flags.treeEv && Math.hypot(S.x - (22 * 16 + 8), S.y - (21 * 16 + 8)) < 30) run(EV.senseiTree);
   }
   const n = nearest(), id = n ? n.id : null;
   if (id !== S.nearId) { S.nearId = id; idlePanel(); }
@@ -873,7 +975,7 @@ function update(dt) {
 function updateEnt(dt) {
   const e = S.ent; if (!e) return;
   const d = Math.hypot(S.x - e.x, S.y - e.y);
-  const Rr = ST.radius + S.presence * ST.radiusPerPresence;
+  const Rr = ST.radius + S.presence * ST.radiusPerPresence + riteCount() * CFG.rules.riteRadius;
   let rate = 0;
   if (!S.busy && d < Rr) {
     const close = 1 - d / Rr;
@@ -895,7 +997,11 @@ function updateEnt(dt) {
     e.x += (tx - e.x) / md * Math.min(sp * dt, md); e.y += (ty - e.y) / md * Math.min(sp * dt, md);
   }
   e.cntT += dt;
-  if (e.cntT > ST.countInterval) { e.cntT = 0; e.cnt = (e.cnt + 1) % ST.counts.length; }
+  // 声は出さない。木に手のひらを当てるたびに、乾いた音が一つ鳴る
+  if (e.cntT > ST.countInterval) {
+    e.cntT = 0; e.cnt = (e.cnt + 1) % 12;
+    if (d < 170) sfx.knock(.35 * (1 - d / 170) + .03);
+  }
   S.hbT -= dt;
   if (d < Rr * 1.6 && S.hbT <= 0) { sfx.thump(); S.hbT = .32 + .9 * (d / (Rr * 1.6)); }
   if (!S.busy && (S.detect >= 100 || (d < ST.catchDistance && !S.holding))) run(EV.caught);
@@ -932,12 +1038,19 @@ function render() {
     dctx.fillStyle = gr; dctx.fillRect(x - r, y - r, r * 2, r * 2);
   };
   cut(px, py, lightR, 1);
+  const ax = 15 * 16 - cx, ay = 2 * 16 + 8 - cy;   // 岩座の青白い光（名が燃えている）
+  if (S.map === 'oku') cut(ax, ay, 44 + Math.sin(S.t * 2.3) * 3, .6);
   for (const [lx, ly] of M.lights) if (!night && lx - cx > -40 && lx - cx < VW + 40 && ly - cy > -40 && ly - cy < VH + 40) cut(lx - cx, ly - cy, 30, .75);
   ctx.drawImage(dark, 0, 0);
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   const warm = ctx.createRadialGradient(px, py, 0, px, py, lightR * .6);
   warm.addColorStop(0, S.eaten.includes('火') ? 'rgba(90,120,200,.06)' : 'rgba(232,178,92,.09)'); warm.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = warm; ctx.fillRect(0, 0, VW, VH);
+  if (S.map === 'oku') {
+    const bl = ctx.createRadialGradient(ax, ay, 0, ax, ay, 40);
+    bl.addColorStop(0, `rgba(120,170,255,${.28 + Math.sin(S.t * 2.3) * .05})`); bl.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = bl; ctx.fillRect(ax - 40, ay - 40, 80, 80);
+  }
   ctx.restore();
   if (S.eaten.includes('火')) { ctx.fillStyle = 'rgba(50,80,150,.12)'; ctx.fillRect(0, 0, VW, VH); }
 
@@ -949,7 +1062,7 @@ function render() {
     drawEnt(e.x - cx, e.y - cy, alpha);
     if (d < 170 && !S.over) {
       cnt.hidden = false;
-      cnt.textContent = '……' + ST.counts[e.cnt];
+      cnt.textContent = (e.cntT < .35 ? '……' + UI.knock : '');
       cnt.style.left = ((e.x - cx) / VW * 100) + '%';
       cnt.style.top = ((e.y - 30 - cy) / VH * 100) + '%';
       cnt.style.opacity = clamp(1.2 - d / 170, 0, 1);
@@ -984,9 +1097,12 @@ function render() {
 }
 function updateHUD() {
   const M = MAPS[S.map];
-  $('area').textContent = T(S.map === 'village' && S.flags.night ? M.nightName : M.name);
+  const vName = S.flags.night ? M.nightName : S.flags.morning ? M.morningName : M.name;
+  $('area').textContent = T(S.map === 'village' ? vName : M.name);
   const words = S.eaten.map(w => '■'.repeat(w.length)).join(' ');
-  $('eatenHud').innerHTML = S.eaten.length ? esc(UI.eatenHud) + '<span>' + words + '</span>' : '';
+  const marks = Array(S.eaten.length).fill('｜'.repeat(CFG.rules.marksPerEat)).join(' ');
+  $('eatenHud').innerHTML = S.eaten.length
+    ? esc(UI.marksHud) + '<span>' + marks + '</span>　' + esc(UI.eatenHud) + '<span>' + words + '</span>' : '';
   $('mBreath').hidden = S.map !== 'oku';
   $('mPres').hidden = S.map === 'village';
   $('mPoss').hidden = !S.flags.learned;
@@ -1012,8 +1128,7 @@ function toggleJ(open) {
     h += `<tr class="${S.eaten.includes(w.sato) ? 'gone' : ''}"><td>${fmt(sato)}</td><td class="y">${esc(w.yama)}</td></tr>`;
   }
   h += `</tbody></table><h3>${esc(UI.journalClues)}</h3><ul>`;
-  const found = ['yado', 'grimoire', 'note', 'forged', 'stone', 'grave', 'contract'].filter(k => S.clues[k]);
-  if (S.clues.grimoire && S.clues.note) found.splice(found.indexOf('grimoire') + 1, 0, 'latin');
+  const found = ['yado', 'crown', 'grimoire', 'note', 'prints', 'bark', 'stone', 'grave', 'contract', 'shidai', 'sold'].filter(k => S.clues[k]);
   for (const k of found) h += `<li>${fmt(T(UI.clues[k]))}</li>`;
   if (S.clues.yado && S.clues.stone) h += `<li class="name">${esc(UI.journalSayo)}</li>`;
   if (!found.length) h += `<li>${esc(UI.journalNoClues)}</li>`;
@@ -1076,5 +1191,6 @@ function loop(now) {
 }
 resetGame();
 requestAnimationFrame(loop);
+if (new URLSearchParams(location.search).has('debug')) window.__game = { get S() { return S; }, D, EV, run, goto, advance, pick, update };
 })();
 </script>

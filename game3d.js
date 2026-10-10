@@ -1,7 +1,7 @@
 /*
  * 忌み言葉 3D
  * ゲームの仕組みと物語は 2D 版（imikotoba.html）と同じ処理をそのまま使い、描画だけを 3D にしている。
- * 台詞・言葉・難易度は config.js で変えられる。
+ * 台詞・言葉・難易度は config3d.js で変えられる（2D 版の旧ストーリー）。
  */
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -16,8 +16,8 @@ const CFG = window.GAME_CONFIG;
 if (!CFG) {
   $('loading').hidden = true;
   $('error').hidden = false;
-  $('error').textContent = '設定ファイル config.js を読み込めませんでした。imikotoba3d.html と同じフォルダに config.js を置いてください。';
-  throw new Error('config.js が読み込めません');
+  $('error').textContent = '設定ファイル config3d.js を読み込めませんでした。imikotoba3d.html と同じフォルダに config3d.js を置いてください。';
+  throw new Error('config3d.js が読み込めません');
 }
 const TX = CFG.text, UI = CFG.text.ui, ST = CFG.stalker;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
