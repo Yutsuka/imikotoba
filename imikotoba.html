@@ -42,6 +42,8 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
 #eatenHud span{color:var(--frost);margin-left:.5em}
 #count{position:absolute;transform:translate(-50%,-100%);color:var(--shu);font-size:clamp(11px,1.9vw,17px);pointer-events:none;white-space:nowrap;text-shadow:0 0 6px var(--night);letter-spacing:.1em}
 #flash{position:absolute;inset:0;background:var(--shu);opacity:0;pointer-events:none}
+#fade{position:absolute;inset:0;background:#000;opacity:0;transition:opacity 1.2s;pointer-events:none;display:flex;align-items:center;justify-content:center}
+#fade .ft{font-size:clamp(16px,3vw,26px);letter-spacing:.4em;color:var(--frost)}
 
 #title{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:clamp(16px,6vw,64px);padding:12px;background:radial-gradient(ellipse at 55% 65%, #1a1e2b 0%, var(--night) 70%);cursor:pointer}
 #title .tt{writing-mode:vertical-rl;font-weight:800;font-size:clamp(30px,9vw,92px);letter-spacing:.25em;line-height:1;text-shadow:0 0 22px rgba(163,40,42,.45)}
@@ -99,7 +101,7 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
 .help{margin:0;font-family:var(--f-ui);font-size:12px;color:var(--ash);line-height:1.8}
 .help kbd{font-family:inherit;color:var(--frost);border:1px solid var(--line);padding:0 4px}
 @media (pointer:coarse){#touch{display:flex}.help{display:none}}
-@media (prefers-reduced-motion:reduce){#eatfx.on .w,#next{animation:none}}
+@media (prefers-reduced-motion:reduce){#eatfx.on .w,#next{animation:none}#fade{transition:none}}
 </style>
 
 <div id="app">
@@ -116,6 +118,7 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
     <div id="eatenHud"></div>
     <div id="count" hidden></div>
     <div id="flash"></div>
+    <div id="fade"><div class="ft"></div></div>
     <div id="eatfx" hidden><div class="w"></div><div class="c"></div></div>
     <div id="journal" hidden></div>
     <div id="endcard" hidden><div class="k">終</div><div class="t"></div></div>
@@ -258,6 +261,10 @@ function buildOku() {
   const clear = (cx, cy, r) => { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (Math.hypot(x - cx, y - cy) <= r) g[y][x] = '.'; };
   clear(14.5, 27, 2); clear(14.5, 3, 3); clear(5, 12, 1.6); clear(24, 10, 1.6); clear(22, 21, 1.6); clear(9, 22, 2.2);
   for (let y = 26; y < H; y++) { g[y][14] = ','; g[y][15] = ','; }
+  // 岩座のまわりは木で囲まれ、入口は注連縄の結界ひとつだけ
+  for (let y = 0; y < 10; y++) for (let x = 8; x < 22; x++) { const d = Math.hypot(x - 14.5, y - 3); if (d > 3.6 && d <= 5.4) g[y][x] = '#'; }
+  for (let y = 5; y <= 13; y++) { g[y][14] = ','; g[y][15] = ','; if (y > 9) { g[y][13] = g[y][13] === '#' ? '.' : g[y][13]; g[y][16] = g[y][16] === '#' ? '.' : g[y][16]; } }
+  g[7][14] = 'Q'; g[7][15] = 'Q';
   // 岩座のまわりだけ雪が解けている
   for (let y = 0; y < 7; y++) for (let x = 10; x < 20; x++) if (g[y][x] === '.' && Math.hypot(x - 14.5, y - 2.5) <= 2.3 + hsh(x, y, 8) * .9) g[y][x] = 'm';
   for (let y = 20; y <= 24; y++) g[y][9] = 'f';   // 裸足と蹄の足跡
@@ -265,17 +272,78 @@ function buildOku() {
   return g;
 }
 
+// 建物の中。I 壁　w 板の間　t 畳　F 布団　k 床の間　c 帳場　h 棚　i 囲炉裏　p 紙漉きの舟　z 机　E 出口
+const INTERIORS = {
+  inn: [
+    'IIIIIIIIIIIIIIII',
+    'IkkttttttttttFFI',
+    'IttttttttttttFFI',
+    'IttttttttttttttI',
+    'IttttttttttttttI',
+    'IIIIIIIttIIIIIII',
+    'IcwwwwwwwwwwwwwI',
+    'IcwwwwwwwwwwwwwI',
+    'IwwwwwwwwwwwwwwI',
+    'IIIIIIIEEIIIIIII',
+  ],
+  genzoHouse: [
+    'IIIIIIIIIIII',
+    'IhhwwwwwwkkI',
+    'IwwwwwwwwwwI',
+    'IwwwiiwwwwwI',
+    'IwwwwwwwwwwI',
+    'IwwwwwwwwwwI',
+    'IIIIIEEIIIII',
+  ],
+  akiyaIn: [
+    'IIIIIIIIIIIIII',
+    'IkkkwwwwwhhhhI',
+    'IwwwwwwwwwwwwI',
+    'IwwwwwwwwwwppI',
+    'IwwwwwwwwwwppI',
+    'IwwwwwwwwwwwwI',
+    'IIIIIIEEIIIIII',
+  ],
+  cabinIn: [
+    'IIIIIIIIII',
+    'IzzwwwwhhI',
+    'IwwwwwwwwI',
+    'IwwwiiwwwI',
+    'IwwwwwwwwI',
+    'IIIIEEIIII',
+  ],
+};
 const BUILDERS = { village: buildVillage, mountain: buildMountain, oku: buildOku };
+for (const id in INTERIORS) BUILDERS[id] = () => INTERIORS[id].map(r => r.split(''));
 const MAPS = {};
 for (const [id, conf] of Object.entries(CFG.maps)) {
   const M = Object.assign({}, conf, { g: BUILDERS[id]() });
   M.h = M.g.length; M.w = M.g[0].length; M.lights = [];
-  M.g.forEach((row, y) => row.forEach((c, x) => { if (c === 'W') M.lights.push([x * 16 + 8, y * 16 + 10]); }));
+  M.hearths = [];
+  M.g.forEach((row, y) => row.forEach((c, x) => {
+    if (c === 'W') M.lights.push([x * 16 + 8, y * 16 + 10]);
+    if (c === 'i' && (row[x - 1] !== 'i')) M.hearths.push([x * 16 + 16, y * 16 + 8]);
+  }));
   MAPS[id] = M;
 }
 const ACTORS = CFG.actors;
-const SOLID = new Set(['#', 'H', 'T', 'W', 'D', 'S', 'K', 'A', 'B', 'X', 'Y', '~', 'R']);
-const visibleActors = () => ACTORS[S.map].filter(a => !(a.night === 'hide' && S.flags.night));
+const SOLID = new Set(['#', 'H', 'T', 'W', 'D', 'S', 'K', 'A', 'B', 'X', 'Y', '~', 'R', 'I', 'k', 'c', 'h', 'i', 'p', 'z']);
+const visibleActors = () => (ACTORS[S.map] || []).filter(a => !(a.night === 'hide' && S.flags.night) && !(a.night === 'only' && !S.flags.night));
+// 戸口：外の戸と、中の出口を結ぶ
+const DOORS = CFG.doors || {};
+const DOOR_OF = {};
+for (const [from, list] of Object.entries(DOORS)) for (const d of list) DOOR_OF[d.to] = { ...d, from };
+// 時間帯：昼 → 夕（源造に話を聞いたあと）→ 朝（宿で眠ったあと）→ 夜（鍵を持って山から戻ったあと）
+const phase = () => S.flags.night ? 'night' : S.flags.morning ? 'morning' : S.flags.learned ? 'evening' : 'day';
+const PHASE_DARK = { day: 'dark', evening: 'eveningDark', morning: 'morningDark', night: 'nightDark' };
+const PHASE_NAME = { day: 'name', evening: 'eveningName', morning: 'morningName', night: 'nightName' };
+function darkness(M) {
+  if (S.map === 'village') return M[PHASE_DARK[phase()]];
+  return S.flags.night && M.nightDark != null ? M.nightDark : M.dark;
+}
+// 窓の灯り：昼と夕は点いている。夜は十二様講をしている民宿だけ
+const windowLit = px => { const p = phase(); return p === 'day' || p === 'evening' || (p === 'night' && px >= 23 * 16 && px < 28 * 16); };
+const hearthLit = () => (S.map === 'genzoHouse' && !S.flags.night) || (S.map === 'cabinIn' && S.flags.cabin);
 
 /* ---------- 状態 ---------- */
 let S;
@@ -313,7 +381,11 @@ function drawTile(g2, M, x, y) {
     for (let i = 0; i < 4; i++) F(Math.floor(hsh(x, y, i + 40) * 15), Math.floor(hsh(x, y, i + 50) * 15), 1, 1, '#7a8190');
   };
   const wall = c => { F(0, 0, 16, 16, c); for (let i = 3; i < 16; i += 4) F(i, 0, 1, 16, '#2e241b'); };
+  const floor = () => { F(0, 0, 16, 16, '#5a4330'); F(0, 5, 16, 1, '#4a3626'); F(0, 11, 16, 1, '#4a3626'); F((x * 7) % 12, 0, 1, 5, '#4a3626'); F((x * 5 + 6) % 14, 6, 1, 5, '#4a3626'); };
+  const tatami = () => { F(0, 0, 16, 16, '#8a8656'); F(0, 0, 16, 1, '#5e5b38'); F(0, 0, 1, 16, '#5e5b38'); for (let i = 2; i < 16; i += 2) F(1, i, 15, 1, '#817d4f'); };
   const above = y > 0 ? M.g[y - 1][x] : '#';
+  const same = (dx, dy) => (M.g[y + dy] || [])[x + dx] === ch;
+  const box = (m, c) => { const x0 = same(-1, 0) ? 0 : m, x1 = same(1, 0) ? 16 : 16 - m, y0 = same(0, -1) ? 0 : m, y1 = same(0, 1) ? 16 : 16 - m; F(x0, y0, x1 - x0, y1 - y0, c); };
   switch (ch) {
     case '.': ground(); break;
     case ',': path(); break;
@@ -333,7 +405,7 @@ function drawTile(g2, M, x, y) {
       ground();
       F(3, 4, 10, 11, '#585b62'); F(4, 3, 8, 2, '#d7dce5'); F(7, 6, 2, 7, '#34363b'); F(5, 8, 6, 2, '#34363b');
       break;
-    case 'W': wall('#4a3a2c'); F(4, 4, 8, 6, S.flags.night ? '#16120f' : '#e8b25c'); F(8, 4, 1, 6, '#7a5326'); F(4, 7, 8, 1, '#7a5326'); break;
+    case 'W': wall('#4a3a2c'); F(4, 4, 8, 6, windowLit(px) ? '#e8b25c' : '#16120f'); F(8, 4, 1, 6, '#7a5326'); F(4, 7, 8, 1, '#7a5326'); break;
     case 'D': wall('#4a3a2c'); F(3, 2, 10, 14, '#120d0a'); F(3, 2, 10, 1, '#2a211a'); break;
     case 'K':
       if (above !== 'K' && above !== 'D') { F(0, 0, 16, 16, '#2b2420'); for (let r = 4; r < 16; r += 3) F(0, r, 16, 1, '#362d27'); F(0, 0, 16, 3, '#dfe4ec'); }
@@ -374,6 +446,32 @@ function drawTile(g2, M, x, y) {
       F(1, 1, 14, 14, '#615c55'); F(3, 0, 10, 16, '#615c55'); F(0, 3, 16, 10, '#615c55');
       for (let i = 0; i < 5; i++) F(Math.floor(hsh(x, y, i + 60) * 14), Math.floor(hsh(x, y, i + 70) * 14), 2, 1, i < 2 ? M.speck : '#4d4943');
       break;
+    case 'Q': // 注連縄の結界（十二日の夜に解かれる）
+      path();
+      if (!S.flags.night) {
+        F(0, 4, 16, 2, '#c4ad78'); F(0, 6, 16, 1, '#8a774c'); F(0, 10, 16, 2, '#c4ad78'); F(0, 12, 16, 1, '#8a774c');
+        for (const sx of [2, 7, 12]) { F(sx, 6, 2, 1, '#ece8dc'); F(sx + 1, 7, 2, 1, '#ece8dc'); F(sx, 8, 2, 1, '#ece8dc'); }
+      } else { F(1, 13, 14, 2, '#8a774c'); F(4, 12, 2, 1, '#ece8dc'); F(10, 14, 2, 1, '#ece8dc'); }
+      break;
+    case 'w': floor(); break;
+    case 't': tatami(); break;
+    case 'E': floor(); F(2, 10, 12, 6, '#120d0a'); F(3, 11, 10, 1, '#cdd3dd'); break;
+    case 'F': tatami(); if (!S.flags.night) { box(1, '#d9d6cc'); if (!same(0, -1)) { F(same(-1, 0) ? 0 : 3, 3, same(1, 0) ? 16 : 13 - (same(-1, 0) ? 0 : 0), 3, '#ece9e0'); } if (!same(0, 1)) F(0, 14, 16, 1, '#bfbcb2'); } break;
+    case 'I':
+      F(0, 0, 16, 16, '#1d1612');
+      if (y + 1 < M.h && M.g[y + 1][x] !== 'I') { F(0, 4, 16, 12, '#4a3a2c'); for (let i = 3; i < 16; i += 4) F(i, 4, 1, 12, '#3a2c22'); F(0, 15, 16, 1, '#2a1e16'); }
+      break;
+    case 'k': floor(); F(0, 0, 16, 16, '#3a2b20'); F(5, 1, 6, 11, '#d9d2bc'); F(6, 3, 4, 6, '#9b9381'); F(0, 13, 16, 3, '#2a1e16'); break;
+    case 'c': floor(); box(1, '#6b4f36'); if (!same(0, -1)) { F(1, 1, 14, 2, '#80603f'); F(4, 5, 8, 6, '#e8e2d0'); F(7, 5, 1, 6, '#9b9381'); } else F(3, 3, 6, 2, '#2a1e16'); break;
+    case 'h': floor(); F(0, 0, 16, 14, '#3e2e22'); F(0, 4, 16, 1, '#2a1e16'); F(0, 9, 16, 1, '#2a1e16'); F(2, 1, 3, 3, '#7a6a55'); F(9, 6, 4, 3, '#5a5f66'); F(4, 10, 6, 3, '#8a7a60'); break;
+    case 'z': floor(); box(1, '#6b4f36'); F(0, 1, 16, 2, '#80603f'); if (!same(-1, 0)) { F(6, 5, 7, 6, '#d8d2c0'); F(6, 5, 1, 6, '#2c3348'); } else F(4, 6, 3, 4, '#3a3c42'); break;
+    case 'p': floor(); box(1, '#3b2d22'); box(3, '#2c3a48'); box(6, '#9a968c'); break;
+    case 'i': {
+      floor(); box(1, '#2a1e16'); box(3, '#6a645c');
+      const ex = same(1, 0) ? 9 : -1;   // 火は二つのタイルの境目に
+      if (hearthLit()) { F(ex, 5, 8, 6, '#c0542a'); F(ex + 2, 6, 4, 3, '#ffb36b'); } else { F(ex + 1, 7, 6, 2, '#4a4540'); }
+      break;
+    }
     case 'B':
       ground();
       F(4, -6, 8, 20, '#5f6268'); F(4, -6, 8, 2, '#d7dce5');
@@ -404,6 +502,9 @@ const LOOK = {
   genzo: { hair: '#d9d9d9', skin: '#d9c0a3', coat: '#6b5a43', acc: '#4d3f2e', leg: '#2b241c' },
   yuki: { hair: '#0b0b0e', skin: '#ece4dc', coat: '#dcdce2', acc: '#9a2a2a', leg: '#c9c9d0', long: true },
   player: { hair: '#17171c', skin: '#e9d8c4', coat: '#2c3348', acc: '#a3282a', leg: '#1b1e2a' },
+  v1: { hair: '#2a2420', skin: '#d8c2a6', coat: '#4d4a52', acc: '#2e2c33', leg: '#26242a' },
+  v2: { hair: '#c9c9c9', skin: '#d9c0a3', coat: '#5b4636', acc: '#3e3026', leg: '#2b241c' },
+  v3: { hair: '#151212', skin: '#e2cdb6', coat: '#3e4a3a', acc: '#2a3328', leg: '#222820' },
 };
 function person(sx, sy, c, dir, f) {
   const L = Math.round(sx) - 5, Tp = Math.round(sy) - 16;
@@ -478,7 +579,7 @@ function audioInit() {
 function setAmb() {
   if (!AC) return;
   const m = S.map, t = AC.currentTime;
-  windG.gain.setTargetAtTime(m === 'oku' ? .012 : m === 'mountain' ? .09 : .05, t, .8);
+  windG.gain.setTargetAtTime(MAPS[m].interior ? .015 : m === 'oku' ? .012 : m === 'mountain' ? .09 : .05, t, .8);
   droneG.gain.setTargetAtTime(m === 'oku' ? .045 : m === 'mountain' ? .018 : 0, t, 1);
 }
 function tone(type, f0, f1, dur, vol) {
@@ -500,7 +601,7 @@ const sfx = {
   thump: () => tone('sine', 70, 38, .18, .35),
   eat: () => { tone('sawtooth', 240, 30, 1.6, .1); tone('sawtooth', 247, 33, 1.6, .08); noiseBurst(.8, .25, 600); },
   caught: () => { noiseBurst(1.2, .5, 300); tone('sawtooth', 120, 25, 1.4, .15); },
-  knock: (v = .3) => { noiseBurst(.05, v, 1900); tone('sine', 320, 180, .07, v * .5); },
+  count: (v = .3) => { noiseBurst(.2, v * .6, 1100); tone('sine', 230, 205, .22, v * .22); },
 };
 
 /* ---------- 文字窓 ---------- */
@@ -603,7 +704,7 @@ async function eat(w) {
   S.eaten.push(w);
   addPresence(CFG.rules.presencePerEat);
   if (w === '犬') S.dog.active = false;
-  sfx.knock(.5); sfx.eat(); await eatFx(w); updateHUD();
+  sfx.count(.5); sfx.eat(); await eatFx(w); updateHUD();
   if (S.eaten.length >= CFG.rules.eatLimit) { await ending('D'); throw END; }
 }
 const eatRandom = () => { const pool = CFG.rules.eatPool.filter(w => !S.eaten.includes(w)); return eat(pool[Math.floor(Math.random() * pool.length)]); };
@@ -621,6 +722,28 @@ const learn = (...ws) => { for (const w of ws) S.known[w] = true; };
 const addPresence = n => { S.presence = Math.min(100, S.presence + n); };
 const P = CFG.rules.presence;
 const riteCount = () => Object.values(S.rite).filter(Boolean).length;
+const wait = ms => new Promise(r => setTimeout(r, reduceMotion ? 0 : ms));
+// 暗転。text を渡すと、暗い画面の中央に出す
+function fade(on, text) {
+  const el = $('fade');
+  el.querySelector('.ft').textContent = text || '';
+  el.style.opacity = on ? 1 : 0;
+  return wait(1300);
+}
+// 戸口に入る
+function enterDoor(d) {
+  if (d.lock && !S.flags[d.lock]) { S.y += 6; run(async () => { await play(TX.akiya.locked); await say('', UI.locked); }); return; }
+  noiseBurst(.25, .12, 500);
+  run(async () => {
+    goto(d.to, ...d.in);
+    if (d.to === 'akiyaIn' && !S.flags.akiyaEntered) { S.flags.akiyaEntered = true; await play(TX.akiyaEnter); }
+  });
+}
+function leaveDoor() {
+  const d = DOOR_OF[S.map];
+  noiseBurst(.25, .12, 500);
+  goto(d.from, ...d.out);
+}
 // 里の言葉／山言葉／黙る の三択に共通する結果
 async function branch(X, o) {
   if (o.kind === 'sato') { await satoPlay(X.sato); await eat(o.word); await play(X.satoAfter); }
@@ -663,7 +786,13 @@ const EV = {
     await play(X.supper);
     if ((await ask(X.askMochi)).i === 0) { S.rite.mochi = true; await play(X.mochiYes); } else await play(X.mochiNo);
     await play(X.sleep);
+    await fade(true);
+    goto('inn', 12, 2, 1);   // 布団のそば
+    await fade(true, UI.morningCard);
+    await wait(900);
     S.flags.morning = true; buildMapCanvas(); updateHUD();
+    await fade(false);
+    await play(X.wake);
     await play(X.charm);
     const c = (await ask(X.askCharm)).i;
     if (c === 0) { S.flags.charm = true; S.rite.na = true; await play(X.charmWrote); }
@@ -762,7 +891,7 @@ const EV = {
       // 十二日に木を切ったので、まとめて数えられる
       await play(X.fireCut); await eatRandom(); await eatRandom(); await play(X.fireCutAfter);
     }
-    S.flags.cabin = true;
+    S.flags.cabin = true; buildMapCanvas();
     await play(X.end);
     setGoal('oku');
   },
@@ -795,12 +924,19 @@ const EV = {
     if (!S.clues.contract) setGoal('key');
   },
   async nightIntro() {
+    await fade(true, UI.nightCard);
+    await wait(900);
     S.flags.night = true;
     buildMapCanvas(); updateHUD();
+    await fade(false);
     await play(TX.nightIntro);
+    if (!S.clues.contract) setGoal('night');
   },
+  async barrier() { await play(S.flags.night ? TX.barrier.open : TX.barrier.closed); },
+  async kami() { await play(TX.akiya.kami); },
+  async mura() { S.muraI = ((S.muraI || 0) + 1) % TX.mura.length; await play(TX.mura[S.muraI]); },
   async caught() {
-    flash(); sfx.caught(); sfx.knock(.6);
+    flash(); sfx.caught(); sfx.count(.6);
     await play(TX.caught.before);
     await eatRandom();
     goto('oku', 14, 27, 0);
@@ -888,6 +1024,7 @@ function solidAt(px, py) {
   const M = MAPS[S.map], ch = (M.g[Math.floor(py / 16)] || [])[Math.floor(px / 16)];
   if (ch === undefined) return true;
   if (ch === 'G') return !S.flags.morning;
+  if (ch === 'Q') return !S.flags.night;
   return SOLID.has(ch);
 }
 function blocked(x, y) {
@@ -939,7 +1076,7 @@ function update(dt) {
   }
   // 犬
   const g = S.dog;
-  if (g.active && !g.away) {
+  if (g.active && !g.away && !MAPS[S.map].interior) {
     const ox = S.x - g.x, oy = S.y + 6 - g.y, d = Math.hypot(ox, oy);
     if (d > 90) { g.x = S.x; g.y = S.y + 8; }
     else if (d > 18) {
@@ -951,8 +1088,16 @@ function update(dt) {
   }
   if (S.map === 'oku') updateEnt(dt);
   if (S.busy || S.over) return;
+  // 戸口：戸に向かって上へ進むと中に入る
+  if (dy < 0) {
+    const d = (DOORS[S.map] || []).find(o => Math.abs(S.x - (o.tx * 16 + 8)) < 9 && Math.floor((S.y - 8) / 16) === o.ty);
+    if (d) { enterDoor(d); return; }
+  }
   // 出来事の起点
   const ty = Math.floor(S.y / 16);
+  if (MAPS[S.map].interior) {
+    if ((MAPS[S.map].g[ty] || [])[Math.floor(S.x / 16)] === 'E') { leaveDoor(); return; }
+  }
   if (S.map === 'village') {
     if (ty <= 0) { goto('mountain', 12, 38, 0); if (!S.flags.mIntro) run(EV.mIntro); }
   } else if (S.map === 'mountain') {
@@ -997,10 +1142,10 @@ function updateEnt(dt) {
     e.x += (tx - e.x) / md * Math.min(sp * dt, md); e.y += (ty - e.y) / md * Math.min(sp * dt, md);
   }
   e.cntT += dt;
-  // 声は出さない。木に手のひらを当てるたびに、乾いた音が一つ鳴る
+  // 十二様が出す声は、木を数える声だけ
   if (e.cntT > ST.countInterval) {
-    e.cntT = 0; e.cnt = (e.cnt + 1) % 12;
-    if (d < 170) sfx.knock(.35 * (1 - d / 170) + .03);
+    e.cntT = 0; e.cnt = (e.cnt + 1) % ST.counts.length;
+    if (d < 170) sfx.count(.35 * (1 - d / 170) + .03);
   }
   S.hbT -= dt;
   if (d < Rr * 1.6 && S.hbT <= 0) { sfx.thump(); S.hbT = .32 + .9 * (d / (Rr * 1.6)); }
@@ -1011,15 +1156,15 @@ function updateEnt(dt) {
 function render() {
   const M = MAPS[S.map];
   const mw = M.w * 16, mh = M.h * 16;
-  let cx = Math.round(clamp(S.x - VW / 2, 0, Math.max(0, mw - VW)));
-  let cy = Math.round(clamp(S.y - 8 - VH / 2, 0, Math.max(0, mh - VH)));
+  let cx = mw <= VW ? Math.round((mw - VW) / 2) : Math.round(clamp(S.x - VW / 2, 0, mw - VW));
+  let cy = mh <= VH ? Math.round((mh - VH) / 2) : Math.round(clamp(S.y - 8 - VH / 2, 0, mh - VH));
   if (S.shake > 0) { cx += Math.round((Math.random() - .5) * 6); cy += Math.round((Math.random() - .5) * 6); }
   ctx.fillStyle = '#07080d'; ctx.fillRect(0, 0, VW, VH);
   ctx.drawImage(mapCanvas, -cx, -cy);
 
   const list = [];
-  for (const a of visibleActors()) if (a.kind) list.push({ y: a.ty * 16 + 12, f: () => person(a.tx * 16 + 8 - cx, a.ty * 16 + 12 - cy, LOOK[a.kind], 2, 0) });
-  if (S.dog.active && !S.dog.away) list.push({ y: S.dog.y, f: () => drawDog(S.dog.x - cx, S.dog.y - cy, S.dog.face) });
+  for (const a of visibleActors()) if (a.kind) list.push({ y: a.ty * 16 + 12, f: () => person(a.tx * 16 + 8 - cx, a.ty * 16 + 12 - cy, LOOK[a.kind], a.dir ?? 2, 0) });
+  if (S.dog.active && !S.dog.away && !M.interior) list.push({ y: S.dog.y, f: () => drawDog(S.dog.x - cx, S.dog.y - cy, S.dog.face) });
   const fr = S.moving ? [0, 1, 0, 2][Math.floor(S.step) % 4] : 0;
   list.push({ y: S.y, f: () => person(S.x - cx, S.y - cy, LOOK.player, S.dir, fr) });
   list.sort((a, b) => a.y - b.y).forEach(o => o.f());
@@ -1030,7 +1175,7 @@ function render() {
   const lightR = M.light * (S.eaten.includes('灯り') ? .55 : 1) + Math.sin(S.t * 13) * 1.5 + Math.random();
   dctx.globalCompositeOperation = 'source-over';
   dctx.clearRect(0, 0, VW, VH);
-  dctx.fillStyle = `rgba(4,5,10,${night ? M.nightDark : M.dark})`; dctx.fillRect(0, 0, VW, VH);
+  dctx.fillStyle = `rgba(4,5,10,${darkness(M)})`; dctx.fillRect(0, 0, VW, VH);
   dctx.globalCompositeOperation = 'destination-out';
   const cut = (x, y, r, a) => {
     const gr = dctx.createRadialGradient(x, y, 0, x, y, r);
@@ -1040,7 +1185,8 @@ function render() {
   cut(px, py, lightR, 1);
   const ax = 15 * 16 - cx, ay = 2 * 16 + 8 - cy;   // 岩座の青白い光（名が燃えている）
   if (S.map === 'oku') cut(ax, ay, 44 + Math.sin(S.t * 2.3) * 3, .6);
-  for (const [lx, ly] of M.lights) if (!night && lx - cx > -40 && lx - cx < VW + 40 && ly - cy > -40 && ly - cy < VH + 40) cut(lx - cx, ly - cy, 30, .75);
+  if (hearthLit()) for (const [hx, hy] of M.hearths) cut(hx - cx, hy - cy, 56 + Math.sin(S.t * 9) * 2, .9);
+  for (const [lx, ly] of M.lights) if (windowLit(lx) && lx - cx > -40 && lx - cx < VW + 40 && ly - cy > -40 && ly - cy < VH + 40) cut(lx - cx, ly - cy, 30, .75);
   ctx.drawImage(dark, 0, 0);
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   const warm = ctx.createRadialGradient(px, py, 0, px, py, lightR * .6);
@@ -1052,6 +1198,17 @@ function render() {
     ctx.fillStyle = bl; ctx.fillRect(ax - 40, ay - 40, 80, 80);
   }
   ctx.restore();
+  if (hearthLit()) for (const [hx, hy] of M.hearths) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const hg = ctx.createRadialGradient(hx - cx, hy - cy, 0, hx - cx, hy - cy, 48);
+    hg.addColorStop(0, 'rgba(232,130,60,.22)'); hg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = hg; ctx.fillRect(hx - cx - 48, hy - cy - 48, 96, 96); ctx.restore();
+  }
+  if (S.map === 'village') {
+    const p = phase();
+    if (p === 'evening') { ctx.fillStyle = 'rgba(190,100,40,.10)'; ctx.fillRect(0, 0, VW, VH); }
+    else if (p === 'morning') { ctx.fillStyle = 'rgba(220,232,255,.07)'; ctx.fillRect(0, 0, VW, VH); }
+  }
   if (S.eaten.includes('火')) { ctx.fillStyle = 'rgba(50,80,150,.12)'; ctx.fillRect(0, 0, VW, VH); }
 
   // 十二様
@@ -1062,7 +1219,7 @@ function render() {
     drawEnt(e.x - cx, e.y - cy, alpha);
     if (d < 170 && !S.over) {
       cnt.hidden = false;
-      cnt.textContent = (e.cntT < .35 ? '……' + UI.knock : '');
+      cnt.textContent = '……' + ST.counts[e.cnt];
       cnt.style.left = ((e.x - cx) / VW * 100) + '%';
       cnt.style.top = ((e.y - 30 - cy) / VH * 100) + '%';
       cnt.style.opacity = clamp(1.2 - d / 170, 0, 1);
@@ -1070,7 +1227,7 @@ function render() {
   }
 
   // 雪
-  if (S.map !== 'oku') {
+  if (S.map !== 'oku' && !M.interior) {
     ctx.fillStyle = 'rgba(235,240,248,.75)';
     for (const f of flakes) ctx.fillRect(Math.round(f.x), Math.round(f.y), f.s > .7 ? 2 : 1, 1);
   }
@@ -1097,14 +1254,13 @@ function render() {
 }
 function updateHUD() {
   const M = MAPS[S.map];
-  const vName = S.flags.night ? M.nightName : S.flags.morning ? M.morningName : M.name;
-  $('area').textContent = T(S.map === 'village' ? vName : M.name);
+  $('area').textContent = T(S.map === 'village' ? M[PHASE_NAME[phase()]] : (S.flags.night && M.nightName) || M.name);
   const words = S.eaten.map(w => '■'.repeat(w.length)).join(' ');
   const marks = Array(S.eaten.length).fill('｜'.repeat(CFG.rules.marksPerEat)).join(' ');
   $('eatenHud').innerHTML = S.eaten.length
     ? esc(UI.marksHud) + '<span>' + marks + '</span>　' + esc(UI.eatenHud) + '<span>' + words + '</span>' : '';
   $('mBreath').hidden = S.map !== 'oku';
-  $('mPres').hidden = S.map === 'village';
+  $('mPres').hidden = !['mountain', 'oku', 'cabinIn'].includes(S.map);
   $('mPoss').hidden = !S.flags.learned;
 }
 function tickHUD() {
