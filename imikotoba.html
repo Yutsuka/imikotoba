@@ -149,7 +149,7 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
   <p class="help">移動 <kbd>矢印</kbd>/<kbd>WASD</kbd>　調べる・進む <kbd>Z</kbd>/<kbd>Enter</kbd>　息を止める <kbd>X</kbd>/<kbd>Shift</kbd> 長押し　言葉帳 <kbd>J</kbd></p>
 </div>
 
-<script src="config.js?v=20261011c"></script>
+<script src="config.js?v=20261011d"></script>
 <script>
 (() => {
 'use strict';
@@ -1632,7 +1632,7 @@ if (new URLSearchParams(location.search).has('debug')) {
   };
   window.__game = { get S() { return S; }, D, EV, TX, MAPS, run, goto, advance, pick, update, ending, jump, unstick, updateHUD };
   const s = document.createElement('script');
-  s.src = 'debug.js?v=20261011c';
+  s.src = 'debug.js?v=20261011d';
   document.body.appendChild(s);
 }
 })();
