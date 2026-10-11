@@ -54,6 +54,7 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
 #title button{align-self:flex-start;font-family:var(--f-ui);font-size:clamp(12px,1.7vw,15px);background:transparent;color:var(--frost);border:1px solid var(--shu);padding:6px 16px;cursor:pointer;letter-spacing:.25em}
 #title button:hover,#title button:focus-visible{background:rgba(163,40,42,.2);outline:none}
 #title .note{font-family:var(--f-ui);font-size:clamp(9px,1.3vw,12px);color:var(--ash)}
+#title .ver{position:absolute;right:10px;bottom:8px;font-family:var(--f-ui);font-size:clamp(9px,1.2vw,11px);color:var(--ash);opacity:.7;letter-spacing:.05em}
 
 #endcard{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(7,8,13,.86)}
 #endcard .k{font-size:clamp(40px,10vw,96px);font-weight:800;color:var(--shu)}
@@ -135,6 +136,7 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
         <button id="startBtn" type="button">はじめる</button>
         <div class="note">音が出ます ／ 試作版・約20分</div>
       </div>
+      <div class="ver" id="ver"></div>
     </div>
   </div>
   <div id="panel"><div id="who"></div><div id="txt"></div><div id="choices"></div><div id="next" hidden>▼</div></div>
@@ -149,7 +151,7 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
   <p class="help">移動 <kbd>矢印</kbd>/<kbd>WASD</kbd>　調べる・進む <kbd>Z</kbd>/<kbd>Enter</kbd>　息を止める <kbd>X</kbd>/<kbd>Shift</kbd> 長押し　言葉帳 <kbd>J</kbd></p>
 </div>
 
-<script src="config.js?v=20261011d"></script>
+<script src="config.js?v=20261011e"></script>
 <script>
 (() => {
 'use strict';
@@ -1570,6 +1572,9 @@ $('tA').addEventListener('click', () => onPress('KeyZ'));
     if (D.mode === 'say') { e.preventDefault(); advance(); }
   });
   if (isTouch) document.querySelector('#title .note').textContent += ' ／ ' + UI.touchNote;
+  // 版：config.js を読み込むときの ?v= の値（push のたびに上げる）
+  const vs = document.querySelector('script[src^="config.js"]');
+  $('ver').textContent = 'ver. ' + ((vs && new URL(vs.src).searchParams.get('v')) || '-');
 }
 $('tJ').addEventListener('click', () => onPress('KeyJ'));
 
@@ -1632,7 +1637,7 @@ if (new URLSearchParams(location.search).has('debug')) {
   };
   window.__game = { get S() { return S; }, D, EV, TX, MAPS, run, goto, advance, pick, update, ending, jump, unstick, updateHUD };
   const s = document.createElement('script');
-  s.src = 'debug.js?v=20261011d';
+  s.src = 'debug.js?v=20261011e';
   document.body.appendChild(s);
 }
 })();
