@@ -149,7 +149,7 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
   <p class="help">移動 <kbd>矢印</kbd>/<kbd>WASD</kbd>　調べる・進む <kbd>Z</kbd>/<kbd>Enter</kbd>　息を止める <kbd>X</kbd>/<kbd>Shift</kbd> 長押し　言葉帳 <kbd>J</kbd></p>
 </div>
 
-<script src="config.js"></script>
+<script src="config.js?v=20261011c"></script>
 <script>
 (() => {
 'use strict';
@@ -675,6 +675,7 @@ function pick(i) {
 }
 // 設定ファイルの台詞を順に流す
 async function play(lines) {
+  if (!lines) return;
   for (const l of lines) {
     if (l === '@restore') { S.eaten = []; updateHUD(); }
     else if (l === '@focus') await focusOn();
@@ -834,12 +835,13 @@ function flash() {
   setTimeout(() => { el.style.transition = 'opacity .9s'; el.style.opacity = 0; }, 40);
 }
 function eatFx(w) {
-  return new Promise(res => {
+  const s0 = S;
+  return new Promise((res, rej) => {
     const el = $('eatfx'), we = el.querySelector('.w'), ce = el.querySelector('.c');
     we.textContent = '「' + w + '」'; ce.textContent = ''; el.hidden = false; el.classList.add('on');
     S.shake = reduceMotion ? 0 : .6;
     setTimeout(() => { we.textContent = '「' + '■'.repeat(w.length) + '」'; ce.textContent = UI.eaten; }, 900);
-    setTimeout(() => { el.hidden = true; el.classList.remove('on'); res(); }, 2100);
+    setTimeout(() => { el.hidden = true; el.classList.remove('on'); S === s0 ? res() : rej(END); }, 2100);
   });
 }
 async function eat(w) {
@@ -867,7 +869,8 @@ const learn = (...ws) => { for (const w of ws) S.known[w] = true; };
 const addPresence = n => { S.presence = Math.min(100, S.presence + n); };
 const P = CFG.rules.presence;
 const riteCount = () => Object.values(S.rite).filter(Boolean).length;
-const wait = ms => new Promise(r => setTimeout(r, reduceMotion ? 0 : ms));
+// 待っているあいだに状態が作り直されたら（デバッグの場面移動など）、その出来事はそこで打ち切る
+const wait = ms => { const s0 = S; return new Promise((r, j) => setTimeout(() => S === s0 ? r() : j(END), reduceMotion ? 0 : ms)); };
 // 暗転。text を渡すと、暗い画面の中央に出す
 function fade(on, text) {
   const el = $('fade');
@@ -1164,9 +1167,10 @@ function showEndcard() {
 /* ---------- 進行 ---------- */
 async function run(fn) {
   if (S.busy || S.over) return;
+  const s0 = S;
   S.busy = true; S.moving = false;
   try { await fn(); } catch (e) { if (e !== END) console.error(e); }
-  finally { if (!S.over) { S.busy = false; idlePanel(); } }
+  finally { if (S === s0 && !S.over) { S.busy = false; idlePanel(); } }
 }
 function goto(map, tx, ty, dir) {
   S.map = map; S.x = tx * 16 + 8; S.y = ty * 16 + 12; S.dir = dir;
@@ -1458,9 +1462,7 @@ function updateHUD() {
   const M = MAPS[S.map];
   $('area').textContent = S.areaLabel || T(S.map === 'village' ? M[PHASE_NAME[phase()]] : (S.flags.night && M.nightName) || M.name);
   const words = S.eaten.map(w => '■'.repeat(w.length)).join(' ');
-  const marks = Array(S.eaten.length).fill('｜'.repeat(CFG.rules.marksPerEat)).join(' ');
-  $('eatenHud').innerHTML = S.eaten.length
-    ? esc(UI.marksHud) + '<span>' + marks + '</span>　' + esc(UI.eatenHud) + '<span>' + words + '</span>' : '';
+  $('eatenHud').innerHTML = S.eaten.length ? esc(UI.eatenHud) + '<span>' + words + '</span>' : '';
   $('mBreath').hidden = S.map !== 'oku';
   $('mPres').hidden = !['mountain', 'oku', 'cabinIn'].includes(S.map);
   $('mPoss').hidden = !S.flags.learned;
@@ -1597,6 +1599,39 @@ function loop(now) {
 }
 resetGame();
 requestAnimationFrame(loop);
-if (new URLSearchParams(location.search).has('debug')) window.__game = { get S() { return S; }, D, EV, run, goto, advance, pick, update, ending };
+/* ---------- デバッグモード（?debug のときだけ。場面の一覧と操作は debug.js） ---------- */
+if (new URLSearchParams(location.search).has('debug')) {
+  // 進めている出来事を打ち切って、文字窓と画面の覆いを片づける
+  const unstick = () => {
+    clearInterval(D.timer);
+    D.mode = null; D.res = null; D.ch.innerHTML = ''; D.nx.hidden = true;
+    $('title').hidden = true; $('endcard').hidden = true; $('journal').hidden = true;
+    $('fade').style.opacity = 0; $('count').hidden = true; $('eatfx').hidden = true;
+    S.busy = false; S.over = false; S.started = true; S.focus = null;
+    idlePanel();
+  };
+  // 場面（debug.js の POINTS の一つ）の状態を作って、そこから始める
+  const jump = cp => {
+    S = newState();
+    unstick();
+    if (!AC) audioInit(); else AC.resume && AC.resume();
+    Object.assign(S.flags, cp.flags);
+    for (const c of cp.clues || []) S.clues[c] = true;
+    Object.assign(S.rite, cp.rite);
+    for (const w of cp.known || []) S.known[w] = true;
+    S.eaten = [...(cp.eaten || [])];
+    S.possess = cp.possess || 0; S.presence = cp.presence || 0;
+    S.dog.active = !!S.flags.learned && !S.eaten.includes('犬') && !S.flags.night;
+    const [tx, ty, dir] = cp.at;
+    goto(cp.map, tx, ty, dir || 0);
+    S.goal = cp.goal ? TX.goals[cp.goal] : '';
+    updateHUD(); idlePanel();
+    if (cp.run) run(EV[cp.run]);
+  };
+  window.__game = { get S() { return S; }, D, EV, TX, run, goto, advance, pick, update, ending, jump, unstick, updateHUD };
+  const s = document.createElement('script');
+  s.src = 'debug.js?v=20261011c';
+  document.body.appendChild(s);
+}
 })();
 </script>
