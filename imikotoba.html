@@ -91,16 +91,16 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
 #next{position:absolute;right:14px;bottom:6px;font-size:.75em;color:var(--ash);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
 
-#touch{display:none;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;user-select:none;-webkit-user-select:none;touch-action:none}
-.dpad{display:grid;grid-template-columns:repeat(3,50px);grid-template-rows:repeat(3,50px)}
-.dpad .u{grid-area:1/2}.dpad .l{grid-area:2/1}.dpad .r{grid-area:2/3}.dpad .d{grid-area:3/2}
+#touch{display:none;justify-content:flex-end;align-items:center;gap:12px;user-select:none;-webkit-user-select:none;touch-action:none}
+#joy{position:absolute;width:84px;height:84px;margin:-42px 0 0 -42px;border:1px solid rgba(217,222,232,.35);border-radius:50%;background:rgba(14,16,24,.25);pointer-events:none}
+#joy b{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:rgba(217,222,232,.28);border:1px solid rgba(217,222,232,.5)}
 #touch button{font-family:var(--f-ui);background:var(--ink);color:var(--frost);border:1px solid var(--line);border-radius:6px;font-size:15px;touch-action:none}
 .acts{display:flex;gap:10px}
-.acts button{width:58px;height:58px;border-radius:50% !important}
+.acts button{width:64px;height:64px;font-size:13px !important;white-space:nowrap;border-radius:50% !important}
 #tA{border-color:var(--lamp) !important}#tB{border-color:var(--shu) !important}
 .help{margin:0;font-family:var(--f-ui);font-size:12px;color:var(--ash);line-height:1.8}
 .help kbd{font-family:inherit;color:var(--frost);border:1px solid var(--line);padding:0 4px}
-@media (pointer:coarse){#touch{display:flex}.help{display:none}}
+@media (pointer:coarse){#touch{display:flex}.help{display:none}#stage{touch-action:none}}
 @media (prefers-reduced-motion:reduce){#eatfx.on .w,#next{animation:none}#fade{transition:none}}
 </style>
 
@@ -119,6 +119,7 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
     <div id="count" hidden></div>
     <div id="flash"></div>
     <div id="fade"><div class="ft"></div></div>
+    <div id="joy" hidden><b></b></div>
     <div id="eatfx" hidden><div class="w"></div><div class="c"></div></div>
     <div id="journal" hidden></div>
     <div id="endcard" hidden><div class="k">終</div><div class="t"></div></div>
@@ -134,12 +135,6 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
   </div>
   <div id="panel"><div id="who"></div><div id="txt"></div><div id="choices"></div><div id="next" hidden>▼</div></div>
   <div id="touch">
-    <div class="dpad">
-      <button type="button" class="u" data-k="ArrowUp">▲</button>
-      <button type="button" class="l" data-k="ArrowLeft">◀</button>
-      <button type="button" class="r" data-k="ArrowRight">▶</button>
-      <button type="button" class="d" data-k="ArrowDown">▼</button>
-    </div>
     <div class="acts">
       <button type="button" id="tJ">帳</button>
       <button type="button" id="tB" data-k="KeyX">息</button>
@@ -168,6 +163,9 @@ ctx.imageSmoothingEnabled = false;
 const dark = document.createElement('canvas'); dark.width = VW; dark.height = VH;
 const dctx = dark.getContext('2d');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isTouch = matchMedia('(pointer: coarse)').matches;
+// スマホ：画面をなぞった向きに歩く
+const joy = { id: null, ox: 0, oy: 0, x: 0, y: 0, moved: false };
 const END = Symbol('end');
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function hsh(x, y, s) { const v = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return v - Math.floor(v); }
@@ -602,6 +600,11 @@ const sfx = {
   eat: () => { tone('sawtooth', 240, 30, 1.6, .1); tone('sawtooth', 247, 33, 1.6, .08); noiseBurst(.8, .25, 600); },
   caught: () => { noiseBurst(1.2, .5, 300); tone('sawtooth', 120, 25, 1.4, .15); },
   count: (v = .3) => { noiseBurst(.2, v * .6, 1100); tone('sine', 230, 205, .22, v * .22); },
+  dread: () => {
+    tone('sawtooth', 62, 44, 3.4, .09); tone('sawtooth', 65.5, 46, 3.4, .07);
+    tone('sine', 1480, 1390, 2.8, .022); tone('sine', 1568, 1500, 2.8, .018);
+    noiseBurst(2.6, .2, 170);
+  },
 };
 
 /* ---------- 文字窓 ---------- */
@@ -660,6 +663,9 @@ function pick(i) {
 async function play(lines) {
   for (const l of lines) {
     if (l === '@restore') { S.eaten = []; updateHUD(); }
+    else if (l === '@focus') await focusOn();
+    else if (l === '@unfocus') await unfocus();
+    else if (l === '@endcard') showEndcard();
     else await say(l[0], l[1], l[2]);
   }
 }
@@ -681,11 +687,47 @@ function idlePanel() {
   D.ch.innerHTML = ''; D.nx.hidden = true;
   D.who.textContent = S.goal ? UI.goalLabel : '';
   D.txt.className = 'idle';
-  D.txt.innerHTML = fmt(T(S.goal)) + (S.nearId ? `<span class="hint">${esc(UI.interactHint)}</span>` : '');
+  D.txt.innerHTML = fmt(T(S.goal)) + (S.nearId ? `<span class="hint">${esc(isTouch ? UI.interactHintTouch : UI.interactHint)}</span>` : '');
 }
 function setGoal(key) { S.goal = TX.goals[key]; idlePanel(); }
 
 /* ---------- 演出 ---------- */
+// 十二様に寄る。カメラが向き、闇が狭まり、赤く脈打つ
+async function focusOn() {
+  const e = S.ent; if (!e) return;
+  S.focus = { x: e.x, y: e.y, k: 0, to: 1 }; S.fhb = 0; S.fcT = 0;
+  $('count').hidden = true;
+  sfx.dread();
+  await wait(reduceMotion ? 200 : 1500);
+}
+async function unfocus() {
+  if (!S.focus) return;
+  S.focus.to = 0;
+  await wait(reduceMotion ? 100 : 700);
+}
+// 寄っているときの、焦点まわりの拡大
+function focusXf(cx, cy) {
+  const F = S.focus; if (!F || F.k < .002) return null;
+  const k = F.k, fx = F.x - cx, fy = F.y - 14 - cy;
+  return { k, fx, fy, tx: fx + (VW / 2 - fx) * k, ty: fy + (VH / 2 - fy) * k, z: 1 + k * 1.6 };
+}
+let focusCv = null;
+function drawFocus(X) {
+  if (!X) return;
+  focusCv = focusCv || Object.assign(document.createElement('canvas'), { width: VW, height: VH });
+  const fc = focusCv.getContext('2d'); fc.clearRect(0, 0, VW, VH); fc.drawImage(cv, 0, 0);
+  const k = X.k, j = reduceMotion ? 0 : Math.round((Math.random() - .5) * 2 * k);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, VW, VH);
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  ctx.translate(X.tx + j, X.ty); ctx.scale(X.z, X.z); ctx.drawImage(focusCv, -X.fx, -X.fy);
+  ctx.restore();
+  const pulse = .5 + .5 * Math.sin(S.t * 7);
+  const vg = ctx.createRadialGradient(VW / 2, VH / 2, VH * (.45 - .25 * k), VW / 2, VH / 2, VW * .62);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(.55, `rgba(50,0,0,${.55 * k})`); vg.addColorStop(1, `rgba(0,0,0,${.96 * k})`);
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, VW, VH);
+  ctx.fillStyle = `rgba(150,0,0,${(.07 + .09 * pulse) * k})`; ctx.fillRect(0, 0, VW, VH);
+  if (!reduceMotion) for (let y = 0; y < VH; y += 2) if (Math.random() < .06 * k) { ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(0, y, VW, 1); }
+}
 function flash() {
   const el = $('flash'); el.style.transition = 'none'; el.style.opacity = .7;
   setTimeout(() => { el.style.transition = 'opacity .9s'; el.style.opacity = 0; }, 40);
@@ -888,8 +930,12 @@ const EV = {
     if (o.kind === 'sato') { await satoPlay(X.fireSato); await eat(o.word); await play(X.fireSatoAfter); }
     else if (o.kind === 'yama') { await play(X.fireYama); await possess(); }
     else {
-      // 十二日に木を切ったので、まとめて数えられる
-      await play(X.fireCut); await eatRandom(); await eatRandom(); await play(X.fireCutAfter);
+      // 十二日に木を切った：十二様がすぐ後ろに現れ、その場で木にされる
+      await play(X.fireCut);
+      const B = [[0, 14], [-14, 0], [0, -14], [14, 0]][S.dir];   // 向きの反対側＝背中
+      S.ent = { x: S.x + B[0], y: S.y + B[1], wp: 0, cnt: 0, cntT: 0, lx: null, ly: null };
+      S.entShow = true;
+      return ending('K');
     }
     S.flags.cabin = true; buildMapCanvas();
     await play(X.end);
@@ -937,7 +983,9 @@ const EV = {
   async mura() { S.muraI = ((S.muraI || 0) + 1) % TX.mura.length; await play(TX.mura[S.muraI]); },
   async caught() {
     flash(); sfx.caught(); sfx.count(.6);
+    if (S.ent) S.focus = { x: S.ent.x, y: S.ent.y, k: .35, to: 1 };
     await play(TX.caught.before);
+    S.focus = null;
     await eatRandom();
     goto('oku', 14, 27, 0);
     await play(TX.caught.after);
@@ -983,11 +1031,18 @@ async function ending(code) {
   const E = TX.endings[code];
   S.over = true; S.busy = true;
   $('count').hidden = true;
-  const ec = $('endcard'); ec.querySelector('.t').textContent = E.title; ec.hidden = false;
+  S.endTitle = E.title;
+  if (E.lines.includes('@focus') && S.map === 'oku' && S.ent) { S.ent.x = 11 * 16 + 8; S.ent.y = 3 * 16 + 12; }
+  if (!E.lines.includes('@endcard')) showEndcard();
   await play(E.lines);
   const summary = UI.endSummary.replace('{code}', E.title).replace('{n}', S.eaten.length).replace('{p}', S.possess);
   await choose([{ label: UI.endPrompt }], ' ', summary);
   resetGame();
+}
+
+function showEndcard() {
+  if (S.focus) S.focus.to = 0;
+  const ec = $('endcard'); ec.querySelector('.t').textContent = S.endTitle; ec.hidden = false;
 }
 
 /* ---------- 進行 ---------- */
@@ -1001,6 +1056,7 @@ function goto(map, tx, ty, dir) {
   S.map = map; S.x = tx * 16 + 8; S.y = ty * 16 + 12; S.dir = dir;
   S.dog.x = S.x; S.dog.y = S.y + 12;
   S.detect = 0; S.breath = 100; S.gasp = false;
+  S.focus = null;
   if (map === 'oku') S.ent = { x: 21 * 16 + 8, y: 13 * 16 + 12, wp: 2, cnt: 0, cntT: 0, lx: null, ly: null };
   buildMapCanvas(); updateHUD(); setAmb();
   $('count').hidden = true;
@@ -1052,6 +1108,7 @@ function update(dt) {
   const B = CFG.breath;
   let dx = (down('ArrowRight', 'KeyD') ? 1 : 0) - (down('ArrowLeft', 'KeyA') ? 1 : 0);
   let dy = (down('ArrowDown', 'KeyS') ? 1 : 0) - (down('ArrowUp', 'KeyW') ? 1 : 0);
+  if (!dx && !dy && joy.id !== null) { dx = joy.x; dy = joy.y; }
   if (S.busy) { dx = 0; dy = 0; }
   const wantHold = !S.busy && down('KeyX', 'ShiftLeft', 'ShiftRight');
   S.holding = wantHold && !S.gasp && S.breath > 0;
@@ -1065,7 +1122,7 @@ function update(dt) {
     S.breath = Math.min(100, S.breath + B.regen * dt);
     if (S.gasp && S.breath > B.recoverAt) S.gasp = false;
   }
-  if (dx && dy) { dx *= .7071; dy *= .7071; }
+  const dl = Math.hypot(dx, dy); if (dl > 1) { dx /= dl; dy /= dl; }
   S.moving = !!(dx || dy);
   const sp = CFG.player.speed * (S.holding ? CFG.player.holdSpeedMul : 1);
   if (S.moving) {
@@ -1149,15 +1206,18 @@ function updateEnt(dt) {
   }
   S.hbT -= dt;
   if (d < Rr * 1.6 && S.hbT <= 0) { sfx.thump(); S.hbT = .32 + .9 * (d / (Rr * 1.6)); }
-  if (!S.busy && (S.detect >= 100 || (d < ST.catchDistance && !S.holding))) run(EV.caught);
+  // 捕まるのは、体が触れたときだけ（見つかっても追ってくるだけ）
+  if (!S.busy && d < ST.catchDistance && !S.holding) run(EV.caught);
 }
 
 /* ---------- 描画 ---------- */
 function render() {
   const M = MAPS[S.map];
   const mw = M.w * 16, mh = M.h * 16;
-  let cx = mw <= VW ? Math.round((mw - VW) / 2) : Math.round(clamp(S.x - VW / 2, 0, mw - VW));
-  let cy = mh <= VH ? Math.round((mh - VH) / 2) : Math.round(clamp(S.y - 8 - VH / 2, 0, mh - VH));
+  const F = S.focus, fk = F ? F.k : 0;
+  const ccx = S.x + (F ? (F.x - S.x) * fk : 0), ccy = S.y - 8 + (F ? (F.y - 14 - (S.y - 8)) * fk : 0);
+  let cx = mw <= VW ? Math.round((mw - VW) / 2) : Math.round(clamp(ccx - VW / 2, 0, mw - VW));
+  let cy = mh <= VH ? Math.round((mh - VH) / 2) : Math.round(clamp(ccy - VH / 2, 0, mh - VH));
   if (S.shake > 0) { cx += Math.round((Math.random() - .5) * 6); cy += Math.round((Math.random() - .5) * 6); }
   ctx.fillStyle = '#07080d'; ctx.fillRect(0, 0, VW, VH);
   ctx.drawImage(mapCanvas, -cx, -cy);
@@ -1185,6 +1245,7 @@ function render() {
   cut(px, py, lightR, 1);
   const ax = 15 * 16 - cx, ay = 2 * 16 + 8 - cy;   // 岩座の青白い光（名が燃えている）
   if (S.map === 'oku') cut(ax, ay, 44 + Math.sin(S.t * 2.3) * 3, .6);
+  if (F && S.ent && fk > .01) cut(S.ent.x - cx, S.ent.y - 14 - cy, 40 * fk, .8 * fk);   // 寄った先だけ、白く浮かぶ
   if (hearthLit()) for (const [hx, hy] of M.hearths) cut(hx - cx, hy - cy, 56 + Math.sin(S.t * 9) * 2, .9);
   for (const [lx, ly] of M.lights) if (windowLit(lx) && lx - cx > -40 && lx - cx < VW + 40 && ly - cy > -40 && ly - cy < VH + 40) cut(lx - cx, ly - cy, 30, .75);
   ctx.drawImage(dark, 0, 0);
@@ -1213,12 +1274,19 @@ function render() {
 
   // 十二様
   const cnt = $('count');
-  if (S.map === 'oku' && S.ent) {
+  if ((S.map === 'oku' || S.entShow) && S.ent) {
     const e = S.ent, d = Math.hypot(S.x - e.x, S.y - e.y);
-    const alpha = d < lightR ? 1 : clamp(1 - (d - lightR) / 140, .22, 1);
+    const alpha = Math.max(fk, d < lightR ? 1 : clamp(1 - (d - lightR) / 140, .22, 1));
     drawEnt(e.x - cx, e.y - cy, alpha);
-    if (d < 170 && !S.over) {
-      cnt.hidden = false;
+    const X = focusXf(cx, cy);
+    if (X && X.k > .3) {
+      // 寄っているあいだは、数える声を大きく
+      const sx = (e.x - cx - X.fx) * X.z + X.tx, sy = (e.y - 30 - cy - X.fy) * X.z + X.ty - 18 * X.k;
+      cnt.hidden = false; cnt.textContent = '……' + ST.counts[e.cnt];
+      cnt.style.left = (sx / VW * 100) + '%'; cnt.style.top = (sy / VH * 100) + '%';
+      cnt.style.opacity = X.k; cnt.style.fontSize = (1 + X.k * .6) + 'em';
+    } else if (d < 170 && !S.over) {
+      cnt.hidden = false; cnt.style.fontSize = '';
       cnt.textContent = '……' + ST.counts[e.cnt];
       cnt.style.left = ((e.x - cx) / VW * 100) + '%';
       cnt.style.top = ((e.y - 30 - cy) / VH * 100) + '%';
@@ -1251,6 +1319,7 @@ function render() {
     hv.addColorStop(0, 'rgba(0,0,0,0)'); hv.addColorStop(1, 'rgba(0,0,0,.55)');
     ctx.fillStyle = hv; ctx.fillRect(0, 0, VW, VH);
   }
+  drawFocus(focusXf(cx, cy));
 }
 function updateHUD() {
   const M = MAPS[S.map];
@@ -1328,6 +1397,37 @@ document.querySelectorAll('#touch [data-k]').forEach(b => {
   b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
 });
 $('tA').addEventListener('click', () => onPress('KeyZ'));
+// 画面をなぞると、なぞった向きに歩く。軽くたたくと調べる・進む
+{
+  const st = $('stage'), jo = $('joy'), kn = jo.querySelector('b'), RAD = 34;
+  const end = e => {
+    if (e.pointerId !== joy.id) return;
+    const tap = !joy.moved;
+    joy.id = null; joy.x = joy.y = 0; jo.hidden = true;
+    if (tap) { if (D.mode === 'say') advance(); else if (!D.mode) onPress('KeyZ'); }
+  };
+  st.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'touch' || !S.started || S.over || !jEl.hidden || joy.id !== null) return;
+    e.preventDefault();
+    joy.id = e.pointerId; joy.moved = false; joy.x = joy.y = 0;
+    joy.ox = e.clientX; joy.oy = e.clientY;
+    try { st.setPointerCapture(e.pointerId); } catch (_) {}
+    const r = st.getBoundingClientRect();
+    jo.style.left = (e.clientX - r.left) + 'px'; jo.style.top = (e.clientY - r.top) + 'px';
+    kn.style.transform = ''; jo.hidden = false;
+  });
+  st.addEventListener('pointermove', e => {
+    if (e.pointerId !== joy.id) return;
+    const dx = e.clientX - joy.ox, dy = e.clientY - joy.oy, l = Math.hypot(dx, dy);
+    if (l > 10) joy.moved = true;
+    if (l > 8) { joy.x = dx / l; joy.y = dy / l; } else joy.x = joy.y = 0;
+    const m = Math.min(l, RAD) / (l || 1);
+    kn.style.transform = `translate(${dx * m}px,${dy * m}px)`;
+  });
+  st.addEventListener('pointerup', end);
+  st.addEventListener('pointercancel', end);
+  if (isTouch) document.querySelector('#title .note').textContent += ' ／ ' + UI.touchNote;
+}
 $('tJ').addEventListener('click', () => onPress('KeyJ'));
 
 /* ---------- ループ ---------- */
@@ -1336,6 +1436,15 @@ function loop(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   S.t += dt;
   if (S.shake > 0) S.shake -= dt;
+  if (S.focus) {
+    const F = S.focus;
+    F.k += (F.to - F.k) * Math.min(1, dt * (F.to ? 1.6 : 4));
+    if (!F.to && F.k < .01) S.focus = null;
+    else if (F.to) {
+      S.fhb -= dt; if (S.fhb <= 0) { sfx.thump(); S.fhb = .5; }
+      S.fcT += dt; if (S.fcT > 1.3 && S.ent) { S.fcT = 0; S.ent.cnt = (S.ent.cnt + 1) % ST.counts.length; sfx.count(.32); }
+    }
+  }
   for (const f of flakes) {
     f.y += f.v * dt; f.x += (Math.sin(S.t * .7 + f.s * 6) * 8 - 6) * dt;
     if (f.y > VH) { f.y = -2; f.x = Math.random() * VW; }
