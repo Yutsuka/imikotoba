@@ -91,12 +91,14 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
 #next{position:absolute;right:14px;bottom:6px;font-size:.75em;color:var(--ash);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
 
-#touch{display:none;justify-content:flex-end;align-items:center;gap:12px;user-select:none;-webkit-user-select:none;touch-action:none}
+#touch{display:none;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;user-select:none;-webkit-user-select:none;touch-action:none}
+.dpad{display:grid;grid-template-columns:repeat(3,50px);grid-template-rows:repeat(3,50px)}
+.dpad .u{grid-area:1/2}.dpad .l{grid-area:2/1}.dpad .r{grid-area:2/3}.dpad .d{grid-area:3/2}
 #joy{position:absolute;width:84px;height:84px;margin:-42px 0 0 -42px;border:1px solid rgba(217,222,232,.35);border-radius:50%;background:rgba(14,16,24,.25);pointer-events:none}
 #joy b{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:rgba(217,222,232,.28);border:1px solid rgba(217,222,232,.5)}
 #touch button{font-family:var(--f-ui);background:var(--ink);color:var(--frost);border:1px solid var(--line);border-radius:6px;font-size:15px;touch-action:none}
-.acts{display:flex;gap:10px}
-.acts button{width:64px;height:64px;font-size:13px !important;white-space:nowrap;border-radius:50% !important}
+.acts{display:flex;gap:8px}
+.acts button{width:56px;height:56px;font-size:12px !important;white-space:nowrap;border-radius:50% !important}
 #tA{border-color:var(--lamp) !important}#tB{border-color:var(--shu) !important}
 .help{margin:0;font-family:var(--f-ui);font-size:12px;color:var(--ash);line-height:1.8}
 .help kbd{font-family:inherit;color:var(--frost);border:1px solid var(--line);padding:0 4px}
@@ -135,6 +137,12 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
   </div>
   <div id="panel"><div id="who"></div><div id="txt"></div><div id="choices"></div><div id="next" hidden>▼</div></div>
   <div id="touch">
+    <div class="dpad">
+      <button type="button" class="u" data-k="ArrowUp">▲</button>
+      <button type="button" class="l" data-k="ArrowLeft">◀</button>
+      <button type="button" class="r" data-k="ArrowRight">▶</button>
+      <button type="button" class="d" data-k="ArrowDown">▼</button>
+    </div>
     <div class="acts">
       <button type="button" id="tJ">帳</button>
       <button type="button" id="tB" data-k="KeyX">息</button>
@@ -326,7 +334,7 @@ for (const [id, conf] of Object.entries(CFG.maps)) {
 }
 const ACTORS = CFG.actors;
 const SOLID = new Set(['#', 'H', 'T', 'W', 'D', 'S', 'K', 'A', 'B', 'X', 'Y', '~', 'R', 'I', 'k', 'c', 'h', 'i', 'p', 'z']);
-const visibleActors = () => (ACTORS[S.map] || []).filter(a => !(a.night === 'hide' && S.flags.night) && !(a.night === 'only' && !S.flags.night));
+const visibleActors = () => (ACTORS[S.map] || []).filter(a => !(a.night === 'hide' && S.flags.night) && !(a.night === 'only' && !S.flags.night) && !(a.after && !S.flags[a.after]));
 // 戸口：外の戸と、中の出口を結ぶ
 const DOORS = CFG.doors || {};
 const DOOR_OF = {};
@@ -747,6 +755,8 @@ async function eat(w) {
   addPresence(CFG.rules.presencePerEat);
   if (w === '犬') S.dog.active = false;
   sfx.count(.5); sfx.eat(); await eatFx(w); updateHUD();
+  // 「先生」を失うと、探している相手そのものがわからなくなる
+  if (w === '先生') { await ending('L'); throw END; }
   if (S.eaten.length >= CFG.rules.eatLimit) { await ending('D'); throw END; }
 }
 const eatRandom = () => { const pool = CFG.rules.eatPool.filter(w => !S.eaten.includes(w)); return eat(pool[Math.floor(Math.random() * pool.length)]); };
