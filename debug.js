@@ -46,6 +46,8 @@
       known: [...YAMA, '名前', '声'], clues: ['crown', 'grimoire', 'yado', 'mura'], goal: 'cabin', hint: '北へ進むと犬・沢・先生の声の出来事' },
     { id: 'cabin', group: '章の始め', label: '十二日：先生の山小屋の前', map: 'mountain', at: [10, 8, 0], flags: BEFORE_CABIN, rite: { yu: true, mochi: true, na: true },
       known: [...YAMA, '名前', '声'], clues: ['crown', 'grimoire', 'yado', 'mura'], goal: 'cabin', hint: '上へ進むと小屋に入る' },
+    { id: 'okuMovie', group: '章の始め', label: '十二日：奥山に入るムービー', map: 'oku', at: [14, 27, 0], flags: { ...OKU, okuIntro: true }, rite: { yu: true, mochi: true, na: true },
+      known: [...YAMA, '名前', '声'], clues: ['crown', 'grimoire', 'yado', 'mura', 'note'], run: 'okuIntro', hint: '十二様が横切るのを、木の陰でやり過ごす' },
     { id: 'oku', group: '章の始め', label: '十二日：奥山の入口', map: 'oku', at: [14, 27, 0], flags: OKU, rite: { yu: true, mochi: true, na: true },
       known: [...YAMA, '名前', '声'], clues: ['crown', 'grimoire', 'yado', 'mura', 'note'], goal: 'altar', hint: '十二様が歩いている。石碑・墓・声のする木' },
     { id: 'night', group: '章の始め', label: '十二日 夜：里に戻った', map: 'village', at: [14, 3, 2], flags: NIGHT, rite: { yu: true, mochi: true, na: true },

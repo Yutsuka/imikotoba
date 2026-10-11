@@ -755,6 +755,7 @@ async function act(c) {
       buildMapCanvas(); updateHUD(); setAmb();
       break;
     case 'wait': await wait(c.ms); break;
+    case 'count': if (S.ent) { S.ent.cnt = c.n - 1; S.ent.cntT = 0; sfx.count(.35); } break;
   }
 }
 // 毎フレーム：歩く、目の開け閉め、木になる、蹄の跡
@@ -1232,7 +1233,8 @@ function update(dt) {
   if (S.busy) { dx = 0; dy = 0; }
   const wantHold = !S.busy && down('KeyX', 'ShiftLeft', 'ShiftRight');
   S.holding = wantHold && !S.gasp && S.breath > 0;
-  if (S.holding) {
+  if (S.cutHold) S.holding = true;   // ムービーの中で息を潜めている（息は減らない）
+  if (S.holding && !S.cutHold) {
     S.breath -= B.drain * dt;
     if (S.breath <= 0) {
       S.breath = 0; S.holding = false; S.gasp = true;
@@ -1318,7 +1320,7 @@ function updateEnt(dt) {
     const md = Math.hypot(tx - e.x, ty - e.y) || 1;
     e.x += (tx - e.x) / md * Math.min(sp * dt, md); e.y += (ty - e.y) / md * Math.min(sp * dt, md);
   }
-  e.cntT += dt;
+  if (!S.busy || S.over) e.cntT += dt;   // ムービーの中では、数は台本（do:'count'）が進める
   // 十二様が出す声は、木を数える声だけ
   if (e.cntT > ST.countInterval) {
     e.cntT = 0; e.cnt = (e.cnt + 1) % ST.counts.length;
@@ -1628,7 +1630,7 @@ if (new URLSearchParams(location.search).has('debug')) {
     updateHUD(); idlePanel();
     if (cp.run) run(EV[cp.run]);
   };
-  window.__game = { get S() { return S; }, D, EV, TX, run, goto, advance, pick, update, ending, jump, unstick, updateHUD };
+  window.__game = { get S() { return S; }, D, EV, TX, MAPS, run, goto, advance, pick, update, ending, jump, unstick, updateHUD };
   const s = document.createElement('script');
   s.src = 'debug.js?v=20261011c';
   document.body.appendChild(s);
