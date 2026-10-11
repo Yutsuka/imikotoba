@@ -91,11 +91,14 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
 #next{position:absolute;right:14px;bottom:6px;font-size:.75em;color:var(--ash);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
 
-#touch{display:none;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;user-select:none;-webkit-user-select:none;touch-action:none}
-.dpad{display:grid;grid-template-columns:repeat(3,50px);grid-template-rows:repeat(3,50px)}
-.dpad .u{grid-area:1/2}.dpad .l{grid-area:2/1}.dpad .r{grid-area:2/3}.dpad .d{grid-area:3/2}
-#joy{position:absolute;width:84px;height:84px;margin:-42px 0 0 -42px;border:1px solid rgba(217,222,232,.35);border-radius:50%;background:rgba(14,16,24,.25);pointer-events:none}
-#joy b{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:rgba(217,222,232,.28);border:1px solid rgba(217,222,232,.5)}
+#touch{display:none;justify-content:space-between;align-items:center;gap:12px;user-select:none;-webkit-user-select:none;touch-action:none}
+#pad{position:relative;flex:none;width:132px;height:132px;border-radius:50%;border:1px solid var(--line);background:radial-gradient(circle,rgba(14,16,24,.2) 0 30%,rgba(14,16,24,.75) 31% 100%);touch-action:none}
+#pad::before{content:'';position:absolute;inset:14px;border-radius:50%;border:1px dashed rgba(217,222,232,.18)}
+#pad i{position:absolute;font-style:normal;font-size:10px;color:var(--ash);line-height:1;pointer-events:none}
+#pad .u{left:50%;top:5px;transform:translateX(-50%)}#pad .d{left:50%;bottom:5px;transform:translateX(-50%)}
+#pad .l{top:50%;left:6px;transform:translateY(-50%)}#pad .r{top:50%;right:6px;transform:translateY(-50%)}
+#pad b{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:rgba(217,222,232,.16);border:1px solid rgba(217,222,232,.45);pointer-events:none}
+#pad.on{border-color:var(--lamp)}#pad.on b{background:rgba(217,222,232,.3)}
 #touch button{font-family:var(--f-ui);background:var(--ink);color:var(--frost);border:1px solid var(--line);border-radius:6px;font-size:15px;touch-action:none}
 .acts{display:flex;gap:8px}
 .acts button{width:56px;height:56px;font-size:12px !important;white-space:nowrap;border-radius:50% !important}
@@ -121,7 +124,6 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
     <div id="count" hidden></div>
     <div id="flash"></div>
     <div id="fade"><div class="ft"></div></div>
-    <div id="joy" hidden><b></b></div>
     <div id="eatfx" hidden><div class="w"></div><div class="c"></div></div>
     <div id="journal" hidden></div>
     <div id="endcard" hidden><div class="k">終</div><div class="t"></div></div>
@@ -137,12 +139,7 @@ body{background:var(--night);color:var(--frost);font-family:var(--f-story);}
   </div>
   <div id="panel"><div id="who"></div><div id="txt"></div><div id="choices"></div><div id="next" hidden>▼</div></div>
   <div id="touch">
-    <div class="dpad">
-      <button type="button" class="u" data-k="ArrowUp">▲</button>
-      <button type="button" class="l" data-k="ArrowLeft">◀</button>
-      <button type="button" class="r" data-k="ArrowRight">▶</button>
-      <button type="button" class="d" data-k="ArrowDown">▼</button>
-    </div>
+    <div id="pad" aria-label="移動"><i class="u">▲</i><i class="d">▼</i><i class="l">◀</i><i class="r">▶</i><b></b></div>
     <div class="acts">
       <button type="button" id="tJ">帳</button>
       <button type="button" id="tB" data-k="KeyX">息</button>
@@ -173,7 +170,7 @@ const dctx = dark.getContext('2d');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isTouch = matchMedia('(pointer: coarse)').matches;
 // スマホ：画面をなぞった向きに歩く
-const joy = { id: null, ox: 0, oy: 0, x: 0, y: 0, moved: false };
+const joy = { id: null, x: 0, y: 0 };   // 円のコントローラーの入力（向きの単位ベクトル）
 const END = Symbol('end');
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function hsh(x, y, s) { const v = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return v - Math.floor(v); }
@@ -1036,6 +1033,9 @@ const EV = {
     const X = TX.cabin;
     if (S.flags.cabin) { await play(X.done); return; }
     await play(X.intro);
+    await play(X.latin);
+    if (S.clues.grimoire) await play(X.latinGrimoire);
+    await play(X.introRest);
     S.clues.note = true;
     await play(X.dark);
     let o = await ask(X.askLight);
@@ -1524,41 +1524,47 @@ $('startBtn').addEventListener('click', e => { e.stopPropagation(); start(); });
 $('panel').addEventListener('click', () => { if (D.mode === 'say') advance(); });
 document.querySelectorAll('#touch [data-k]').forEach(b => {
   const k = b.dataset.k;
-  const on = e => { e.preventDefault(); keys[k] = true; if (D.mode === 'choice' && (k === 'ArrowUp' || k === 'ArrowDown')) onPress(k); };
+  const on = e => { e.preventDefault(); keys[k] = true; };
   const off = e => { e.preventDefault(); keys[k] = false; };
   b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off);
   b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
 });
 $('tA').addEventListener('click', () => onPress('KeyZ'));
-// 画面をなぞると、なぞった向きに歩く。軽くたたくと調べる・進む
+// 円のコントローラー：円の中に触れた位置（中心からの向き）に歩く。選択肢では上下で選ぶ
 {
-  const st = $('stage'), jo = $('joy'), kn = jo.querySelector('b'), RAD = 34;
+  const pad = $('pad'), kn = pad.querySelector('b');
+  let vy = 0;
+  const set = e => {
+    const r = pad.getBoundingClientRect(), R = r.width / 2;
+    const dx = e.clientX - r.left - R, dy = e.clientY - r.top - R, l = Math.hypot(dx, dy);
+    if (l > R * .16) { joy.x = dx / l; joy.y = dy / l; } else joy.x = joy.y = 0;
+    const m = Math.min(l, R - 26) / (l || 1);
+    kn.style.transform = `translate(${dx * m}px,${dy * m}px)`;
+    if (D.mode === 'choice') {
+      const s = joy.y < -.7 ? -1 : joy.y > .7 ? 1 : 0;
+      if (s && s !== vy) onPress(s < 0 ? 'ArrowUp' : 'ArrowDown');
+      vy = s;
+    }
+  };
   const end = e => {
     if (e.pointerId !== joy.id) return;
-    const tap = !joy.moved;
-    joy.id = null; joy.x = joy.y = 0; jo.hidden = true;
-    if (tap) { if (D.mode === 'say') advance(); else if (!D.mode) onPress('KeyZ'); }
+    joy.id = null; joy.x = joy.y = 0; kn.style.transform = ''; pad.classList.remove('on');
   };
-  st.addEventListener('pointerdown', e => {
-    if (e.pointerType !== 'touch' || !S.started || S.over || !jEl.hidden || joy.id !== null) return;
+  pad.addEventListener('pointerdown', e => {
     e.preventDefault();
-    joy.id = e.pointerId; joy.moved = false; joy.x = joy.y = 0;
-    joy.ox = e.clientX; joy.oy = e.clientY;
-    try { st.setPointerCapture(e.pointerId); } catch (_) {}
-    const r = st.getBoundingClientRect();
-    jo.style.left = (e.clientX - r.left) + 'px'; jo.style.top = (e.clientY - r.top) + 'px';
-    kn.style.transform = ''; jo.hidden = false;
+    if (joy.id !== null) return;
+    joy.id = e.pointerId; vy = 0;
+    try { pad.setPointerCapture(e.pointerId); } catch (_) {}
+    pad.classList.add('on'); set(e);
   });
-  st.addEventListener('pointermove', e => {
-    if (e.pointerId !== joy.id) return;
-    const dx = e.clientX - joy.ox, dy = e.clientY - joy.oy, l = Math.hypot(dx, dy);
-    if (l > 10) joy.moved = true;
-    if (l > 8) { joy.x = dx / l; joy.y = dy / l; } else joy.x = joy.y = 0;
-    const m = Math.min(l, RAD) / (l || 1);
-    kn.style.transform = `translate(${dx * m}px,${dy * m}px)`;
+  pad.addEventListener('pointermove', e => { if (e.pointerId === joy.id) set(e); });
+  pad.addEventListener('pointerup', end);
+  pad.addEventListener('pointercancel', end);
+  // 画面をタップしても、会話を次へ進めるだけ（調べるのは「調べる」ボタン）
+  $('stage').addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'touch' || !S.started || S.over || !jEl.hidden) return;
+    if (D.mode === 'say') { e.preventDefault(); advance(); }
   });
-  st.addEventListener('pointerup', end);
-  st.addEventListener('pointercancel', end);
   if (isTouch) document.querySelector('#title .note').textContent += ' ／ ' + UI.touchNote;
 }
 $('tJ').addEventListener('click', () => onPress('KeyJ'));
