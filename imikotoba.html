@@ -334,7 +334,7 @@ for (const [id, conf] of Object.entries(CFG.maps)) {
 }
 const ACTORS = CFG.actors;
 const SOLID = new Set(['#', 'H', 'T', 'W', 'D', 'S', 'K', 'A', 'B', 'X', 'Y', '~', 'R', 'I', 'k', 'c', 'h', 'i', 'p', 'z']);
-const visibleActors = () => (ACTORS[S.map] || []).filter(a => !(a.night === 'hide' && S.flags.night) && !(a.night === 'only' && !S.flags.night) && !(a.after && !S.flags[a.after]));
+const visibleActors = () => S.noActors ? [] : (ACTORS[S.map] || []).filter(a => !(a.night === 'hide' && S.flags.night) && !(a.night === 'only' && !S.flags.night) && !(a.after && !S.flags[a.after]));
 // 戸口：外の戸と、中の出口を結ぶ
 const DOORS = CFG.doors || {};
 const DOOR_OF = {};
@@ -363,6 +363,7 @@ function newState() {
     presence: 0, possess: 0, breath: 100, holding: false, gasp: false, detect: 0, hbT: 0,
     busy: false, over: false, started: false, nearId: null, shake: 0,
     dog: { active: false, away: false, x: 0, y: 0, face: 1 }, ent: null, t: 0,
+    cast: {}, trail: [], noActors: false, altarOff: false,
   };
 }
 
@@ -392,6 +393,7 @@ function drawTile(g2, M, x, y) {
   const above = y > 0 ? M.g[y - 1][x] : '#';
   const same = (dx, dy) => (M.g[y + dy] || [])[x + dx] === ch;
   const box = (m, c) => { const x0 = same(-1, 0) ? 0 : m, x1 = same(1, 0) ? 16 : 16 - m, y0 = same(0, -1) ? 0 : m, y1 = same(0, 1) ? 16 : 16 - m; F(x0, y0, x1 - x0, y1 - y0, c); };
+  if (S.flags.forest && M === MAPS.village && 'THWDS'.includes(ch)) { ground(); tree(g2, px, py, x, y); return; }
   switch (ch) {
     case '.': ground(); break;
     case ',': path(); break;
@@ -537,24 +539,31 @@ function drawDog(sx, sy, face) {
   R(face < 0 ? x + 4 : x - 7, y - 8, 2, 1, k);
   R(face < 0 ? hx + 1 : hx + 2, y - 8, 1, 1, '#c9a24a');
 }
-function drawEnt(sx, sy, alpha) {
-  const L = Math.round(sx - 6 + Math.sin(S.t * 1.7)), Tp = Math.round(sy - 28);
-  // 影だけに角がある
+// 影だけに角がある
+function hornShadow(hx, hy, alpha) {
   ctx.save(); ctx.globalAlpha = alpha * .6;
-  const hx = L + 6, hy = Tp + 27;
   R(hx, hy, 15, 2, '#000'); R(hx + 13, hy - 1, 4, 4, '#000');
   R(hx + 16, hy - 3, 1, 2, '#000'); R(hx + 17, hy - 4, 1, 2, '#000');
   R(hx + 16, hy + 3, 1, 2, '#000'); R(hx + 17, hy + 4, 1, 2, '#000');
   ctx.restore();
+}
+// o.eyes：開いている目の数（0〜12）、o.horns：影の角
+function drawEnt(sx, sy, alpha, o = {}) {
+  const eyes = Math.round(o.eyes ?? 12), horns = o.horns ?? true;
+  const L = Math.round(sx - 6 + Math.sin(S.t * 1.7)), Tp = Math.round(sy - 28);
+  if (horns) hornShadow(L + 6, Tp + 27, alpha);
+  else { ctx.save(); ctx.globalAlpha = alpha * .3; R(L + 1, Tp + 27, 10, 2, '#000'); ctx.restore(); }
   ctx.save(); ctx.globalAlpha = alpha;
   R(L + 1, Tp, 10, 3, '#040406'); R(L, Tp + 2, 12, 24, '#040406');
   R(L + 2, Tp + 9, 8, 19, '#d6d6dc'); R(L + 3, Tp + 3, 6, 7, '#c9c1b8'); R(L + 3, Tp + 3, 6, 1, '#040406');
   ctx.restore();
+  if (!eyes) return;
   ctx.save(); ctx.globalAlpha = Math.min(1, alpha + .45);
-  for (const ey of [5, 7, 9]) for (const ex of [3, 5, 6, 8]) R(L + ex, Tp + ey, 1, 1, '#ff2a2a');
+  let n = 0;
+  for (const ey of [5, 7, 9]) for (const ex of [3, 5, 6, 8]) if (n++ < eyes) R(L + ex, Tp + ey, 1, 1, '#ff2a2a');
   ctx.globalCompositeOperation = 'lighter';
   const gr = ctx.createRadialGradient(L + 6, Tp + 7, 0, L + 6, Tp + 7, 10);
-  gr.addColorStop(0, 'rgba(255,40,40,.35)'); gr.addColorStop(1, 'rgba(255,40,40,0)');
+  gr.addColorStop(0, `rgba(255,40,40,${.35 * eyes / 12})`); gr.addColorStop(1, 'rgba(255,40,40,0)');
   ctx.fillStyle = gr; ctx.fillRect(L - 6, Tp - 5, 24, 24);
   ctx.restore();
 }
@@ -674,6 +683,7 @@ async function play(lines) {
     else if (l === '@focus') await focusOn();
     else if (l === '@unfocus') await unfocus();
     else if (l === '@endcard') showEndcard();
+    else if (l && l.do) await act(l);
     else await say(l[0], l[1], l[2]);
   }
 }
@@ -699,11 +709,97 @@ function idlePanel() {
 }
 function setGoal(key) { S.goal = TX.goals[key]; idlePanel(); }
 
+/* ---------- 演出：結末で人物を動かす ---------- */
+const who = id => id === 'player' ? S : id === 'ent' ? S.ent : S.cast[id];
+const tileX = v => v * 16 + 8, tileY = v => v * 16 + 12;
+async function act(c) {
+  switch (c.do) {
+    case 'ent': {
+      let x, y;
+      if (c.at === 'behind') { const B = [[0, 1], [-1, 0], [0, -1], [1, 0]][S.dir], d = c.dist || 16; x = S.x + B[0] * d; y = S.y + B[1] * d; }
+      else { x = tileX(c.at[0]); y = tileY(c.at[1]); }
+      S.ent = { x, y, wp: 0, cnt: 0, cntT: 0, lx: null, ly: null, eyes: c.eyes ?? 12 };
+      S.entShow = true;
+      break;
+    }
+    case 'spawn': S.cast[c.id] = { x: tileX(c.at[0]), y: tileY(c.at[1]), look: c.look, dir: c.dir ?? 2, alpha: c.alpha ?? 1, step: 0 }; break;
+    case 'remove': delete S.cast[c.id]; break;
+    case 'walk': {
+      const o = who(c.who); if (!o) break;
+      let tx, ty;
+      if (c.toPlayer) { const d = Math.hypot(S.x - o.x, S.y - o.y) || 1; tx = S.x + (o.x - S.x) / d * c.toPlayer; ty = S.y + (o.y - S.y) / d * c.toPlayer; }
+      else if (c.by) { tx = o.x + c.by[0] * 16; ty = o.y + c.by[1] * 16; }
+      else { tx = tileX(c.to[0]); ty = tileY(c.to[1]); }
+      const p = new Promise(r => { o.go = { x: tx, y: ty, sp: c.sp || 24, done: r }; });
+      if (c.wait !== false) await p;
+      break;
+    }
+    case 'eyes': {
+      const e = S.ent; if (!e) break;
+      const ms = c.ms || 2400;
+      e.eyesTo = c.to; e.eyesRate = 12 / (ms / 1000);
+      if (c.wait !== false) await wait(ms);
+      break;
+    }
+    case 'tree': {
+      const o = who(c.who); if (!o) break;
+      o.treeK = o.treeK || 0; o.growing = true; sfx.thump(); setTimeout(() => sfx.thump(), 380);
+      if (c.wait !== false) await wait(1600);
+      break;
+    }
+    case 'set': Object.assign(who(c.who) || {}, c.v); break;
+    case 'altarOff': S.altarOff = true; break;
+    case 'fade': await fade(c.on); if (c.on) await wait(500); break;
+    case 'goto':
+      goto(c.map, c.at[0], c.at[1], c.dir ?? 2);
+      Object.assign(S.flags, c.flags || {});
+      S.noActors = true; S.dog.active = false; S.areaLabel = c.area || null;
+      buildMapCanvas(); updateHUD(); setAmb();
+      break;
+    case 'wait': await wait(c.ms); break;
+  }
+}
+// 毎フレーム：歩く、目の開け閉め、木になる、蹄の跡
+function stepCast(dt) {
+  const mv = (o, isP) => {
+    const t = o.go; if (!t) return;
+    const dx = t.x - o.x, dy = t.y - o.y, d = Math.hypot(dx, dy), st = t.sp * dt;
+    const dir = Math.abs(dy) >= Math.abs(dx) ? (dy < 0 ? 0 : 2) : (dx < 0 ? 3 : 1);
+    if (d <= st) { o.x = t.x; o.y = t.y; o.go = null; if (isP) S.moving = false; else o.moving = false; t.done(); return; }
+    o.x += dx / d * st; o.y += dy / d * st; o.dir = dir; o.step = (o.step || 0) + dt * 8;
+    if (isP) {
+      S.moving = true;
+      if (S.hoof && (!S.trail.length || Math.hypot(S.x - S.trail.at(-1).x, S.y - S.trail.at(-1).y) > 7)) S.trail.push({ x: S.x, y: S.y, s: S.trail.length % 2 });
+    } else o.moving = true;
+  };
+  mv(S, true);
+  if (S.ent) mv(S.ent);
+  for (const c of Object.values(S.cast)) mv(c);
+  for (const o of [S, S.ent, ...Object.values(S.cast)]) if (o && o.growing) o.treeK = Math.min(1, o.treeK + dt / 1.4);
+  const e = S.ent;
+  if (e && e.eyesTo !== undefined) {
+    const v = e.eyes ?? 12, st = e.eyesRate * dt;
+    e.eyes = Math.abs(e.eyesTo - v) <= st ? e.eyesTo : v + Math.sign(e.eyesTo - v) * st;
+  }
+}
+// 木になっていく：姿が薄れ、足もとから木が伸びる
+function growTree(sx, sy, k, seed) {
+  if (k <= 0) return;
+  ctx.save(); ctx.translate(Math.round(sx), Math.round(sy)); ctx.scale(k, k);
+  tree(ctx, -8, -16, seed, 7);
+  ctx.restore();
+}
+function drawFig(o, sx, sy, fn) {
+  const k = o.treeK || 0;
+  if (k < 1) { ctx.save(); ctx.globalAlpha *= 1 - k; fn(); ctx.restore(); }
+  growTree(sx, sy, k, Math.round(o.x / 16));
+}
+
 /* ---------- 演出 ---------- */
 // 十二様に寄る。カメラが向き、闇が狭まり、赤く脈打つ
 async function focusOn() {
   const e = S.ent; if (!e) return;
-  S.focus = { x: e.x, y: e.y, k: 0, to: 1 }; S.fhb = 0; S.fcT = 0;
+  S.focus = { x: e.x, y: e.y, k: 0, to: 1, tgt: e }; S.fhb = 0; S.fcT = 0;
   $('count').hidden = true;
   sfx.dread();
   await wait(reduceMotion ? 200 : 1500);
@@ -892,7 +988,18 @@ const EV = {
     if (!S.flags.key) return play(TX.akiya.locked);
     await play(TX.akiya.contract);
     S.clues.contract = true; S.clues.shidai = true; S.clues.sold = true; S.flags.blank = true;
+    await play(TX.akiya.reason);
+    await play(S.flags.heardTurn ? TX.akiya.reasonYuki : TX.akiya.reasonPlain);
+    await play(TX.akiya.reasonEnd);
     setGoal('final');
+  },
+  async tome() {
+    const X = TX.tome;
+    if (S.flags.morning) { await play(X.morning); S.flags.heardTurn = true; }
+    else if (S.flags.learned) {
+      if (S.clues.mura) return play(X.eveningAgain);
+      await play(X.evening); S.clues.mura = true;
+    } else await play(X.day);
   },
   async genzoya() { await play(S.flags.night ? TX.genzoya.night : TX.genzoya.day); },
   async gate() {
@@ -1009,7 +1116,7 @@ const EV = {
       if (S.flags.charm) opts.push({ ...O.charm, v: 'charm' });
       if (!S.eaten.includes('名前')) opts.push({ ...O.name, v: 'name' });
       opts.push({ ...O.B, v: 'B' }, { ...O.kaeru, v: 'kaeru' });
-      if (S.clues.yado || S.clues.stone) opts.push({ ...O.sayo, v: 'C' });
+      if (S.clues.yado || S.clues.stone || S.clues.mura) opts.push({ ...O.sayo, v: 'C' });
       if (S.clues.grimoire) opts.push({ ...O.ask, v: 'ask' });
       if (S.flags.blank && S.clues.contract && S.clues.shidai && S.clues.grave) opts.push({ ...O.village, v: 'T' });
       if (S.known['私'] === true) opts.push({ ...O.ego, v: 'E' });
@@ -1042,7 +1149,6 @@ async function ending(code) {
   S.over = true; S.busy = true;
   $('count').hidden = true;
   S.endTitle = E.title;
-  if (E.lines.includes('@focus') && S.map === 'oku' && S.ent) { S.ent.x = 11 * 16 + 8; S.ent.y = 3 * 16 + 12; }
   if (!E.lines.includes('@endcard')) showEndcard();
   await play(E.lines);
   const summary = UI.endSummary.replace('{code}', E.title).replace('{n}', S.eaten.length).replace('{p}', S.possess);
@@ -1066,7 +1172,7 @@ function goto(map, tx, ty, dir) {
   S.map = map; S.x = tx * 16 + 8; S.y = ty * 16 + 12; S.dir = dir;
   S.dog.x = S.x; S.dog.y = S.y + 12;
   S.detect = 0; S.breath = 100; S.gasp = false;
-  S.focus = null;
+  S.focus = null; S.cast = {}; S.trail = []; S.entShow = false; S.go = null;
   if (map === 'oku') S.ent = { x: 21 * 16 + 8, y: 13 * 16 + 12, wp: 2, cnt: 0, cntT: 0, lx: null, ly: null };
   buildMapCanvas(); updateHUD(); setAmb();
   $('count').hidden = true;
@@ -1236,7 +1342,24 @@ function render() {
   for (const a of visibleActors()) if (a.kind) list.push({ y: a.ty * 16 + 12, f: () => person(a.tx * 16 + 8 - cx, a.ty * 16 + 12 - cy, LOOK[a.kind], a.dir ?? 2, 0) });
   if (S.dog.active && !S.dog.away && !M.interior) list.push({ y: S.dog.y, f: () => drawDog(S.dog.x - cx, S.dog.y - cy, S.dog.face) });
   const fr = S.moving ? [0, 1, 0, 2][Math.floor(S.step) % 4] : 0;
-  list.push({ y: S.y, f: () => person(S.x - cx, S.y - cy, LOOK.player, S.dir, fr) });
+  for (const c of Object.values(S.cast)) list.push({ y: c.y, f: () => {
+    const sx = c.x - cx, sy = c.y - cy;
+    drawFig(c, sx, sy, () => {
+      ctx.globalAlpha *= c.alpha;
+      if (c.look === 'kimono') drawEnt(sx, sy, 1, { eyes: 0, horns: false });
+      else person(sx, sy, LOOK[c.look], c.dir, c.moving ? [0, 1, 0, 2][Math.floor(c.step) % 4] : 0);
+    });
+  } });
+  list.push({ y: S.y, f: () => {
+    const sx = S.x - cx, sy = S.y - cy;
+    drawFig(S, sx, sy, () => {
+      if (S.horns) hornShadow(sx, sy - 1, 1);
+      if (S.kimono) drawEnt(sx, sy, 1, { eyes: 0, horns: false });
+      else person(sx, sy, LOOK.player, S.dir, fr);
+    });
+  } });
+  // 蹄の跡
+  for (const p of S.trail) { const tx = Math.round(p.x - cx + (p.s ? 2 : -3)), ty = Math.round(p.y - cy); R(tx, ty, 1, 2, '#2a2e38'); R(tx + 2, ty, 1, 2, '#2a2e38'); }
   list.sort((a, b) => a.y - b.y).forEach(o => o.f());
 
   // 闇
@@ -1254,7 +1377,7 @@ function render() {
   };
   cut(px, py, lightR, 1);
   const ax = 15 * 16 - cx, ay = 2 * 16 + 8 - cy;   // 岩座の青白い光（名が燃えている）
-  if (S.map === 'oku') cut(ax, ay, 44 + Math.sin(S.t * 2.3) * 3, .6);
+  if (S.map === 'oku' && !S.altarOff) cut(ax, ay, 44 + Math.sin(S.t * 2.3) * 3, .6);
   if (F && S.ent && fk > .01) cut(S.ent.x - cx, S.ent.y - 14 - cy, 40 * fk, .8 * fk);   // 寄った先だけ、白く浮かぶ
   if (hearthLit()) for (const [hx, hy] of M.hearths) cut(hx - cx, hy - cy, 56 + Math.sin(S.t * 9) * 2, .9);
   for (const [lx, ly] of M.lights) if (windowLit(lx) && lx - cx > -40 && lx - cx < VW + 40 && ly - cy > -40 && ly - cy < VH + 40) cut(lx - cx, ly - cy, 30, .75);
@@ -1263,7 +1386,7 @@ function render() {
   const warm = ctx.createRadialGradient(px, py, 0, px, py, lightR * .6);
   warm.addColorStop(0, S.eaten.includes('火') ? 'rgba(90,120,200,.06)' : 'rgba(232,178,92,.09)'); warm.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = warm; ctx.fillRect(0, 0, VW, VH);
-  if (S.map === 'oku') {
+  if (S.map === 'oku' && !S.altarOff) {
     const bl = ctx.createRadialGradient(ax, ay, 0, ax, ay, 40);
     bl.addColorStop(0, `rgba(120,170,255,${.28 + Math.sin(S.t * 2.3) * .05})`); bl.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = bl; ctx.fillRect(ax - 40, ay - 40, 80, 80);
@@ -1287,7 +1410,7 @@ function render() {
   if ((S.map === 'oku' || S.entShow) && S.ent) {
     const e = S.ent, d = Math.hypot(S.x - e.x, S.y - e.y);
     const alpha = Math.max(fk, d < lightR ? 1 : clamp(1 - (d - lightR) / 140, .22, 1));
-    drawEnt(e.x - cx, e.y - cy, alpha);
+    drawFig(e, e.x - cx, e.y - cy, () => drawEnt(e.x - cx, e.y - cy, alpha, e));
     const X = focusXf(cx, cy);
     if (X && X.k > .3) {
       // 寄っているあいだは、数える声を大きく
@@ -1305,7 +1428,7 @@ function render() {
   }
 
   // 雪
-  if (S.map !== 'oku' && !M.interior) {
+  if (S.map !== 'oku' && !M.interior && !S.flags.clear) {
     ctx.fillStyle = 'rgba(235,240,248,.75)';
     for (const f of flakes) ctx.fillRect(Math.round(f.x), Math.round(f.y), f.s > .7 ? 2 : 1, 1);
   }
@@ -1333,7 +1456,7 @@ function render() {
 }
 function updateHUD() {
   const M = MAPS[S.map];
-  $('area').textContent = T(S.map === 'village' ? M[PHASE_NAME[phase()]] : (S.flags.night && M.nightName) || M.name);
+  $('area').textContent = S.areaLabel || T(S.map === 'village' ? M[PHASE_NAME[phase()]] : (S.flags.night && M.nightName) || M.name);
   const words = S.eaten.map(w => '■'.repeat(w.length)).join(' ');
   const marks = Array(S.eaten.length).fill('｜'.repeat(CFG.rules.marksPerEat)).join(' ');
   $('eatenHud').innerHTML = S.eaten.length
@@ -1363,7 +1486,7 @@ function toggleJ(open) {
     h += `<tr class="${S.eaten.includes(w.sato) ? 'gone' : ''}"><td>${fmt(sato)}</td><td class="y">${esc(w.yama)}</td></tr>`;
   }
   h += `</tbody></table><h3>${esc(UI.journalClues)}</h3><ul>`;
-  const found = ['yado', 'crown', 'grimoire', 'note', 'prints', 'bark', 'stone', 'grave', 'contract', 'shidai', 'sold'].filter(k => S.clues[k]);
+  const found = ['yado', 'mura', 'crown', 'grimoire', 'note', 'prints', 'bark', 'stone', 'grave', 'contract', 'shidai', 'sold'].filter(k => S.clues[k]);
   for (const k of found) h += `<li>${fmt(T(UI.clues[k]))}</li>`;
   if (S.clues.yado && S.clues.stone) h += `<li class="name">${esc(UI.journalSayo)}</li>`;
   if (!found.length) h += `<li>${esc(UI.journalNoClues)}</li>`;
@@ -1446,8 +1569,10 @@ function loop(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   S.t += dt;
   if (S.shake > 0) S.shake -= dt;
+  stepCast(dt);
   if (S.focus) {
     const F = S.focus;
+    if (F.tgt) { F.x = F.tgt.x; F.y = F.tgt.y; }
     F.k += (F.to - F.k) * Math.min(1, dt * (F.to ? 1.6 : 4));
     if (!F.to && F.k < .01) S.focus = null;
     else if (F.to) {
@@ -1466,6 +1591,6 @@ function loop(now) {
 }
 resetGame();
 requestAnimationFrame(loop);
-if (new URLSearchParams(location.search).has('debug')) window.__game = { get S() { return S; }, D, EV, run, goto, advance, pick, update };
+if (new URLSearchParams(location.search).has('debug')) window.__game = { get S() { return S; }, D, EV, run, goto, advance, pick, update, ending };
 })();
 </script>
